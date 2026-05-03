@@ -1,0 +1,328 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# CodeRabbit Configuration — SQLWhisper
+# Docs: https://docs.coderabbit.ai/configure-coderabbit/
+#
+# Philosophy:
+#   SQLWhisper is a local NL→SQL engine (FastAPI + Streamlit + Ollama + SQLAlchemy + sqlglot).
+#   pre-commit handles → formatting, linting, types, secrets, whitespace.
+#   CodeRabbit handles → pipeline correctness, SQL safety, retry logic, prompt injection.
+
+language: en-US
+early_access: false
+
+# ── Review Settings ───────────────────────────────────────────────────────────
+reviews:
+  profile: chill
+  request_changes_workflow: false
+
+  high_level_summary: true
+  high_level_summary_placeholder: "@coderabbitai summary"
+  poem: false
+  collapse_walkthrough: true
+  review_status: true
+  sequence_diagrams: true
+  abort_on_close: true
+
+  # ── Labels ─────────────────────────────────────────────────────────────────
+  suggested_labels: true
+  auto_apply_labels: true
+
+  labeling_instructions:
+
+    # Area
+    - label: "area:llm"
+      instructions: >
+        Apply when the PR changes OllamaClient, PromptBuilder,
+        RetryOrchestrator, correction prompts, or anything in src/llm/.
+
+    - label: "area:validation"
+      instructions: >
+        Apply when the PR changes SQLValidator, safety blocklist, schema
+        checker, sqlglot AST parsing, or anything in src/validation/.
+
+    - label: "area:database"
+      instructions: >
+        Apply when the PR changes DatabaseConnector, QueryExecutor,
+        KeywordTableSelector, schema cache, or anything in src/database/.
+
+    - label: "area:ui"
+      instructions: >
+        Apply when the PR changes the Streamlit app, result renderer, CSV
+        export, query history sidebar, or app.py.
+
+    - label: "area:config"
+      instructions: >
+        Apply when the PR changes src/core/config.py, src/core/constants.py,
+        config/config.yaml, .env.example, or .coderabbit.yaml.
+
+    - label: "area:infra"
+      instructions: >
+        Apply when the PR changes Dockerfile, docker-compose.yml, Makefile,
+        pyproject.toml, uv.lock, or CI workflows.
+
+    - label: "area:tests"
+      instructions: >
+        Apply when the PR adds or changes pytest tests, conftest.py, or test
+        fixtures.
+
+    - label: "area:docs"
+      instructions: >
+        Apply when the PR changes README.md, docs/, or docstrings.
+
+    # Type
+    - label: "type:feature"
+      instructions: Apply when the PR introduces new functionality.
+
+    - label: "type:bug"
+      instructions: Apply when the PR fixes a defect.
+
+    - label: "type:refactor"
+      instructions: Apply when the PR restructures code without changing behaviour.
+
+    - label: "type:chore"
+      instructions: Apply when the PR is maintenance with no user-facing impact.
+
+    - label: "type:hotfix"
+      instructions: Apply when the PR is an urgent fix targeting main or develop directly.
+
+    # Risk
+    - label: "risk:breaking-change"
+      instructions: >
+        Apply when the PR changes the safety blocklist, retry logic, SQL
+        validator behaviour, or executor LIMIT enforcement in a way that could
+        allow writes or break existing queries.
+
+    - label: "risk:needs-review"
+      instructions: >
+        Apply when the PR touches src/validation/safety.py, src/llm/retry.py,
+        src/database/executor.py, or any prompt template.
+
+    - label: "risk:safe"
+      instructions: >
+        Apply when the PR is isolated to docs, README, Makefile targets, test
+        fixtures, or purely cosmetic changes.
+
+    # Size
+    - label: "size:small"
+      instructions: Apply when the PR changes fewer than 50 lines (excluding uv.lock).
+
+    - label: "size:medium"
+      instructions: Apply when the PR changes 50–200 lines (excluding uv.lock).
+
+    - label: "size:large"
+      instructions: Apply when the PR changes more than 200 lines (excluding uv.lock).
+
+    # Status
+    - label: "status:wip"
+      instructions: >
+        Apply when the PR title contains WIP, the PR is a draft, or the
+        description states the work is not yet complete.
+
+    - label: "status:ready"
+      instructions: Apply when the PR is not a draft and is ready for review.
+
+    # Priority
+    - label: "priority:low"
+      instructions: Apply when the PR is a nice-to-have with no urgency.
+
+    - label: "priority:medium"
+      instructions: Apply when the PR is planned sprint work to be merged this week.
+
+    - label: "priority:high"
+      instructions: Apply when the PR fixes an important bug or unblocks other tickets.
+
+    - label: "priority:critical"
+      instructions: >
+        Apply when the PR fixes a crash, data loss, or broken core pipeline that
+        must be merged immediately.
+
+  # ── Auto-review ─────────────────────────────────────────────────────────────
+  auto_review:
+    enabled: true
+    drafts: false
+    auto_incremental_review: true
+    base_branches:
+      - master
+      - develop
+      - "release/.*"
+
+  # ── Path-based review instructions ──────────────────────────────────────────
+  path_instructions:
+
+    - path: "src/validation/safety.py"
+      instructions: |
+        Security-critical. Flag any path where a blocked keyword can slip through.
+
+        BLOCKLIST
+        - Must cover all keywords in core/constants.py → BLOCKED_KEYWORDS
+        - Check must be case-insensitive
+        - Must match full tokens, not substrings (e.g. "INSERTED" must not trigger "INSERT" block)
+        - Hard block — no retry, surface error immediately, never reaches executor
+
+        BYPASS VECTORS
+        - Flag string concatenation or f-strings that interpolate user input into SQL
+        - Flag any regex that could be defeated by comment injection (e.g. -- or /* */)
+
+    - path: "src/validation/"
+      instructions: |
+        SQL validation pipeline. Focus on:
+
+        STAGE ORDER
+        - parse() must run before check_schema() and check_safety()
+        - check_safety() result must never be retried — raise immediately
+
+        SCHEMA CHECK
+        - extract table + column refs from AST, not from raw SQL string
+        - Diff against schema cache; correction prompt must name the valid column
+
+        DIALECT ACCURACY
+        - sqlglot dialect param must match the active DB config dialect
+        - Flag any hardcoded dialect string — must come from DatabaseSettings.dialect
+
+    - path: "src/llm/retry.py"
+      instructions: |
+        RetryOrchestrator — correction loop. Focus on:
+
+        RETRY LIMITS
+        - Must stop at MAX_RETRIES (from constants.py) — flag any hardcoded "3"
+        - On 3rd failure: surface error + last SQL attempt to user, never silently swallow
+
+        CORRECTION PROMPTS
+        - Each error type (syntax, bad column, bad table) must produce a distinct prompt
+        - Correction prompt must include the previous SQL + exact error message
+        - Must use CORRECTION_PROMPT_TEMPLATE from constants.py
+
+        SAFETY BYPASS
+        - check_safety() failure must never enter the retry loop — flag any path that does
+
+    - path: "src/llm/"
+      instructions: |
+        Ollama client + prompt builder. Focus on:
+
+        PROMPT INJECTION
+        - User question must be sanitised before interpolation — strip leading/trailing whitespace
+        - Flag any path where raw user input reaches the LLM without passing through PromptBuilder
+        - Schema subset must use exact column names from cache, never raw user input
+
+        TIMEOUT
+        - All HTTP calls must respect OllamaSettings.timeout_seconds
+        - Flag any requests/httpx call without an explicit timeout
+
+        SQL EXTRACTION
+        - Must strip markdown fences (```sql, ```) from LLM response before validation
+        - Must handle empty response gracefully (raise, don't pass empty string to validator)
+
+    - path: "src/database/executor.py"
+      instructions: |
+        Read-only query executor — last safety guard. Focus on:
+
+        READ-ONLY ENFORCEMENT
+        - Session must be opened with execution_options that prevent writes
+        - Hard LIMIT append: if "LIMIT" not in SQL (case-insensitive), append "LIMIT {MAX_ROWS}"
+        - MAX_ROWS must come from constants.py — flag any hardcoded 500
+
+        RESULT CONTRACT
+        - Must return ResultSet dataclass: rows, columns, execution_time_ms, sql_used
+        - execution_time_ms must be wall-clock time of the DB round-trip only
+
+        ERROR HANDLING
+        - DB connection failure → friendly message, not raw SQLAlchemy exception
+        - Never expose connection URL in error messages (it contains credentials)
+
+    - path: "src/database/connector.py"
+      instructions: |
+        Schema introspection. Focus on:
+
+        SECRET SAFETY
+        - Connection URL is SecretStr — must call .get_secret_value() only at connection time
+        - Must never log or repr() the URL
+
+        CACHE
+        - Schema cache must be populated on startup and refreshable
+        - Cache must store: {table: {columns, pk, fk, row_count}}
+
+    - path: "src/core/config.py"
+      instructions: |
+        Pydantic Settings. Focus on:
+
+        SECRET HANDLING
+        - DB URLs must be SecretStr — flag any change to plain str
+        - Secrets must come from .env only — flag any secret in config.yaml
+
+        ENV FILE PRIORITY
+        - APP_ENV must be read from os.environ before pydantic parses anything
+        - .env.<APP_ENV> must take priority over .env
+
+        CONSTANTS USAGE
+        - All magic strings and numbers must reference core/constants.py
+        - Flag any hardcoded timeout, limit, or model name string
+
+    - path: "src/core/constants.py"
+      instructions: |
+        Single source of truth for all magic values. Focus on:
+
+        COMPLETENESS
+        - Every literal used in >1 module must be defined here
+        - Flag any PR that introduces a new hardcoded string/number in src/ without
+          adding a corresponding constant here
+
+        BLOCKED_KEYWORDS
+        - Must match the set in this file exactly — flag removals without justification
+
+    - path: "tests/"
+      instructions: |
+        Pytest test suite. Focus on:
+
+        ISOLATION
+        - Unit tests must not make real network calls to Ollama or any DB
+        - Flag missing mocks for OllamaClient, SQLAlchemy engine, and subprocess calls
+
+        SAFETY COVERAGE
+        - Every keyword in BLOCKED_KEYWORDS must have a corresponding test case
+        - Retry exhaustion (3x failure) must be tested
+
+        COVERAGE
+        - New modules must have corresponding tests
+        - Coverage must not drop below 80% (enforced by pyproject.toml)
+
+    - path: "Dockerfile"
+      instructions: |
+        - Base image must be pinned to a specific version tag
+        - App must not run as root — check for USER directive
+        - No secrets in ENV or RUN steps
+        - uv must be used for dependency installation, not pip
+
+    - path: "docker-compose.yml"
+      instructions: |
+        - All services must have restart: unless-stopped or on-failure
+        - Secrets must use env vars, never hardcoded values
+        - Ollama service (if present) must have a healthcheck
+
+    - path: "pyproject.toml"
+      instructions: |
+        - requires-python must be >= 3.12
+        - mypy overrides must not blanket-disable error codes
+        - Coverage fail-under must not be lowered below 80
+        - No dev deps in [project.dependencies]
+
+    - path: ".pre-commit-config.yaml"
+      instructions: |
+        - All hook versions must be pinned (no "latest")
+        - mypy additional_dependencies must stay in sync with pyproject.toml
+        - language_version must be python3.12
+        - no-commit-to-branch must protect master, develop, and release/*
+
+  # ── Ignored paths ────────────────────────────────────────────────────────────
+  path_filters:
+    - "!uv.lock"
+    - "!**/__pycache__/**"
+    - "!*.pyc"
+    - "!htmlcov/**"
+    - "!coverage.xml"
+    - "!.pytest_cache/**"
+    - "!**/.mypy_cache/**"
+
+# ── Chat ──────────────────────────────────────────────────────────────────────
+chat:
+  auto_reply: true

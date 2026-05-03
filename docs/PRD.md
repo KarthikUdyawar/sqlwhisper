@@ -108,7 +108,7 @@ SQL:
 **Stage 2 — Schema check**
 - Extract all table + column refs from AST
 - Diff against cached schema
-- On unknown column → correction prompt: `"Column 'revenue' not found. Use: 'total_amount'"` 
+- On unknown column → correction prompt: `"Column 'revenue' not found. Use: 'total_amount'"`
 
 **Stage 3 — Safety check**
 - Block: `DROP`, `DELETE`, `UPDATE`, `INSERT`, `TRUNCATE`, `ALTER`, `GRANT`, `EXEC`
