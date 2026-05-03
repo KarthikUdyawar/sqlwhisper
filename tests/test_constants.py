@@ -1,0 +1,145 @@
+"""Tests for core/constants.py."""
+
+from __future__ import annotations
+
+from core.constants import (
+    BLOCKED_KEYWORDS,
+    CORRECTION_PROMPT_TEMPLATE,
+    DEFAULT_MODEL,
+    FALLBACK_MODEL,
+    MAX_RETRIES,
+    MAX_ROWS,
+    MAX_TABLES_IN_PROMPT,
+    OLLAMA_BASE_URL,
+    OLLAMA_TIMEOUT_SECONDS,
+    PROMPT_TEMPLATE,
+    SUPPORTED_DIALECTS,
+    Dialect,
+)
+
+
+class TestDialect:
+    def test_values(self) -> None:
+        assert Dialect.POSTGRESQL == "postgresql"
+        assert Dialect.SQLITE == "sqlite"
+        assert Dialect.MYSQL == "mysql"
+
+    def test_supported_dialects_matches_enum(self) -> None:
+        assert SUPPORTED_DIALECTS == {d.value for d in Dialect}
+
+    def test_frozenset_immutable(self) -> None:
+        import pytest
+
+        with pytest.raises((AttributeError, TypeError)):
+            SUPPORTED_DIALECTS.add("oracle")  # type: ignore[attr-defined]
+
+
+class TestBlockedKeywords:
+    REQUIRED = {
+        "DROP",
+        "DELETE",
+        "UPDATE",
+        "INSERT",
+        "TRUNCATE",
+        "ALTER",
+        "GRANT",
+        "EXEC",
+    }
+
+    def test_required_keywords_present(self) -> None:
+        missing = self.REQUIRED - BLOCKED_KEYWORDS
+        assert not missing, f"Missing blocked keywords: {missing}"
+
+    def test_keywords_uppercase(self) -> None:
+        for kw in BLOCKED_KEYWORDS:
+            assert kw == kw.upper(), f"Keyword '{kw}' must be uppercase"
+
+    def test_frozenset_immutable(self) -> None:
+        import pytest
+
+        with pytest.raises((AttributeError, TypeError)):
+            BLOCKED_KEYWORDS.add("NEWKW")  # type: ignore[attr-defined]
+
+
+class TestDefaults:
+    def test_ollama_defaults(self) -> None:
+        assert DEFAULT_MODEL == "sqlcoder:7b"
+        assert FALLBACK_MODEL == "deepseek-coder:6.7b"
+        assert OLLAMA_BASE_URL == "http://localhost:11434"
+        assert OLLAMA_TIMEOUT_SECONDS == 30
+
+    def test_app_defaults(self) -> None:
+        assert MAX_ROWS == 500
+        assert MAX_RETRIES == 3
+        assert MAX_TABLES_IN_PROMPT == 5
+
+
+class TestPromptTemplates:
+    def test_prompt_template_has_required_placeholders(self) -> None:
+        for placeholder in ("{dialect}", "{schema_subset}", "{question}", "{max_rows}"):
+            assert placeholder in PROMPT_TEMPLATE, f"Missing {placeholder}"
+
+    def test_correction_template_has_required_placeholders(self) -> None:
+        for placeholder in ("{sql}", "{error}"):
+            assert placeholder in CORRECTION_PROMPT_TEMPLATE, f"Missing {placeholder}"
+
+    def test_prompt_template_format(self) -> None:
+        rendered = PROMPT_TEMPLATE.format(
+            dialect="sqlite",
+            schema_subset="users(id, name)",
+            question="show all users",
+            max_rows=500,
+        )
+        assert "sqlite" in rendered
+        assert "users(id, name)" in rendered
+        assert "show all users" in rendered
+
+    def test_correction_template_format(self) -> None:
+        rendered = CORRECTION_PROMPT_TEMPLATE.format(
+            dialect="sqlite",
+            schema_subset="users(id, name)",
+            question="show all users",
+            sql="SELECT * FORM users",
+            error="syntax error near FORM",
+        )
+        assert "SELECT * FORM users" in rendered
+        assert "syntax error near FORM" in rendered
+
+
+class TestHistoryDbPath:
+    def test_is_absolute(self) -> None:
+        from core.constants import HISTORY_DB_PATH
+
+        assert HISTORY_DB_PATH.is_absolute()
+
+    def test_is_path_object(self) -> None:
+        from pathlib import Path
+
+        from core.constants import HISTORY_DB_PATH
+
+        assert isinstance(HISTORY_DB_PATH, Path)
+
+    def test_ends_with_db_filename(self) -> None:
+        from core.constants import HISTORY_DB_PATH
+
+        assert HISTORY_DB_PATH.name == "sqlwhisper_history.db"
+
+
+class TestCorrectionPromptTemplate:
+    def test_has_all_required_placeholders(self) -> None:
+        for ph in ("{dialect}", "{schema_subset}", "{question}", "{sql}", "{error}"):
+            assert ph in CORRECTION_PROMPT_TEMPLATE, f"Missing {ph}"
+
+    def test_formats_correctly(self) -> None:
+        rendered = CORRECTION_PROMPT_TEMPLATE.format(
+            dialect="sqlite",
+            schema_subset="users(id, name)",
+            question="show all users",
+            sql="SELECT * FORM users",
+            error="syntax error near FORM",
+        )
+        assert "sqlite" in rendered
+        assert "users(id, name)" in rendered
+        assert "show all users" in rendered
+        assert "SELECT * FORM users" in rendered
+        assert "syntax error near FORM" in rendered

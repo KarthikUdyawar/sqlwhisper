@@ -25,6 +25,7 @@ from core.constants import (
     MAX_TABLES_IN_PROMPT,
     OLLAMA_BASE_URL,
     OLLAMA_TIMEOUT_SECONDS,
+    SUPPORTED_DIALECTS,
 )
 
 # ---------------------------------------------------------------------------
@@ -145,7 +146,7 @@ class TestDatabaseSettings:
         with pytest.raises(ValidationError, match="postgresql"):
             DatabaseSettings(url="x://x/x", dialect="oracle")
 
-    @pytest.mark.parametrize("dialect", ["postgresql", "sqlite", "mysql"])
+    @pytest.mark.parametrize("dialect", sorted(SUPPORTED_DIALECTS))
     def test_all_supported_dialects_accepted(self, dialect: str) -> None:
         db = DatabaseSettings(url="x://x/x", dialect=dialect)
         assert db.dialect == dialect
@@ -278,3 +279,53 @@ app:
         with patch.dict(os.environ, {"SQLWHISPER_OLLAMA__TIMEOUT_SECONDS": "99"}):
             s = Settings()
         assert s.ollama.timeout_seconds == 99
+
+
+# ---------------------------------------------------------------------------
+# _deep_merge
+# ---------------------------------------------------------------------------
+
+
+class TestDeepMerge:
+    def test_override_wins_for_scalar(self) -> None:
+        from core.config import _deep_merge
+
+        result = _deep_merge({"a": 1}, {"a": 2})
+        assert result["a"] == 2
+
+    def test_base_key_preserved_when_not_in_override(self) -> None:
+        from core.config import _deep_merge
+
+        result = _deep_merge({"a": 1, "b": 2}, {"a": 99})
+        assert result["b"] == 2
+
+    def test_nested_dict_merged_not_replaced(self) -> None:
+        from core.config import _deep_merge
+
+        base = {
+            "ollama": {"model": "sqlcoder:7b", "base_url": "http://localhost:11434"}
+        }
+        override = {"ollama": {"model": "deepseek:6.7b"}}
+        result = _deep_merge(base, override)
+        # override key wins
+        assert result["ollama"]["model"] == "deepseek:6.7b"
+        # base key preserved — not wiped by partial override
+        assert result["ollama"]["base_url"] == "http://localhost:11434"
+
+    def test_non_dict_override_replaces_dict_base(self) -> None:
+        from core.config import _deep_merge
+
+        result = _deep_merge({"a": {"nested": 1}}, {"a": "scalar"})
+        assert result["a"] == "scalar"
+
+    def test_empty_override_returns_base(self) -> None:
+        from core.config import _deep_merge
+
+        base = {"x": 1, "y": {"z": 2}}
+        assert _deep_merge(base, {}) == base
+
+    def test_empty_base_returns_override(self) -> None:
+        from core.config import _deep_merge
+
+        override = {"x": 1}
+        assert _deep_merge({}, override) == override

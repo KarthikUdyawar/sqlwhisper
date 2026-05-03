@@ -24,7 +24,7 @@ flowchart TD
     F -->|Stage 2 — schema| H[column / table diff]
     F -->|Stage 3 — safety| I[BLOCKED_KEYWORDS check]
 
-    G -->|fail| J[Correction prompt\nmax 3 retries]
+    G -->|fail| J[Correction prompt\ndialect + schema + question\nmax 3 retries]
     H -->|fail| J
     J --> E
 
@@ -45,19 +45,19 @@ flowchart LR
     SQL[Raw SQL from LLM] --> P1
 
     subgraph Validator
-        P1[Stage 1\nSyntax parse\nsqlglot] -->|error| E1[Correction prompt]
-        P1 -->|ok| P2[Stage 2\nSchema check\ncolumn · table refs]
+        P1[Stage 1\nSyntax parse\nsqlglot] -->|error| E1[Correction prompt\ndialect + schema + question]
+        P1 -->|ok| P2[Stage 2\nSchema check\ncolumn · table refs from AST]
         P2 -->|unknown ref| E2[Correction prompt\nwith valid column name]
-        P2 -->|ok| P3[Stage 3\nSafety check\nBLOCKED_KEYWORDS]
+        P2 -->|ok| P3[Stage 3\nSafety check\nBLOCKED_KEYWORDS\ncase-insensitive · full-token]
         P3 -->|blocked| HARD([Hard block\nno retry])
         P3 -->|ok| EXEC
     end
 
-    E1 --> RETRY{Attempt ≤ 3?}
+    E1 --> RETRY{Attempt ≤ MAX_RETRIES?}
     E2 --> RETRY
     RETRY -->|yes| SQL
     RETRY -->|no| FAIL([Surface error\n+ last SQL attempt])
-    EXEC([Query Executor]) --> RESULT([ResultSet])
+    EXEC([Query Executor\nread-only · LIMIT 500]) --> RESULT([ResultSet])
 ```
 
 ---
@@ -70,18 +70,20 @@ flowchart LR
 
     subgraph Priority - highest wins
         direction TB
-        B[env vars\nSQLWHISPER_*] --> C[.env.development\n.env.staging\n.env.production]
+        B[env vars\nSQLWHISPER_SECTION__KEY] --> C[.env.development\n.env.staging\n.env.production]
         C --> D[.env\nbase fallback]
         D --> E[config/config.yaml\nnon-secret defaults]
     end
 
-    B & C & D & E --> F[Settings\npydantic-settings]
+    B & C & D & E --> F[Settings\npydantic-settings\n_deep_merge]
 
     style B fill:#d4edda
     style E fill:#fff3cd
 ```
 
 > **Rule:** secrets (DB URLs) → `.env` only via `SecretStr`. Tunables (timeouts, model names, limits) → `config/config.yaml`.
+>
+> **Env var format:** `SQLWHISPER_<SECTION>__<KEY>` — single underscore after prefix, double as nested delimiter.
 
 ---
 
@@ -98,7 +100,7 @@ flowchart LR
 ```bash
 git clone https://github.com/KarthikUdyawar/sqlwhisper
 cd sqlwhisper
-make dev          # install all deps including dev
+make dev          # install all deps including dev group
 make pc-install   # install pre-commit hooks (once after clone)
 ```
 
@@ -116,12 +118,12 @@ ollama pull deepseek-coder:6.7b
 cp .env.example .env.development
 ```
 
-Edit `.env.development` — add your DB URL:
+Edit `.env.development` — add your DB URL(s):
 
 ```env
-APP_ENV=development
-SQLWHISPER_DATABASES__DEFAULT__URL=postgresql://user:password@localhost:5432/mydb
-SQLWHISPER_DATABASES__LOCAL__URL=sqlite:///./dev.db
+APP_ENV="development"
+SQLWHISPER_DATABASES__DEFAULT__URL="postgresql://user:password@localhost:5432/mydb"
+SQLWHISPER_DATABASES__LOCAL__URL="sqlite:///./dev.db"
 ```
 
 Non-secret tunables (model, timeouts, limits) are already set in `config/config.yaml`.
@@ -153,8 +155,8 @@ sqlwhisper/
 │       └── SPRINT_1.md
 ├── src/
 │   ├── core/
-│   │   ├── config.py        # pydantic-settings — Settings + sub-models
-│   │   └── constants.py     # all magic strings, numbers, enums
+│   │   ├── config.py        # pydantic-settings — Settings + sub-models + _deep_merge
+│   │   └── constants.py     # all magic strings, numbers, enums, HISTORY_DB_PATH
 │   ├── database/
 │   │   ├── connector.py     # SQLAlchemy connect + schema introspect
 │   │   ├── executor.py      # read-only query execution + ResultSet
@@ -169,9 +171,9 @@ sqlwhisper/
 │   │   └── safety.py        # BLOCKED_KEYWORDS enforcement
 │   └── main.py
 ├── tests/
-│   └── test_config.py
+│   ├── test_config.py       # 43 tests — Settings, sub-models, _deep_merge
+│   └── test_constants.py    # 17 tests — enums, blocklist, templates, paths
 ├── app.py                   # Streamlit entrypoint
-├── config.yaml              # (see config/)
 ├── .env.example
 ├── Makefile
 ├── pyproject.toml
@@ -199,13 +201,13 @@ app:
 
 ### `.env.<environment>` — secrets + overrides
 
-| Variable                             | Description                              |
-| ------------------------------------ | ---------------------------------------- |
-| `APP_ENV`                            | `development` / `staging` / `production` |
-| `SQLWHISPER_DATABASES__<ALIAS>__URL` | DB connection URL (contains credentials) |
-| `SQLWHISPER_OLLAMA__BASE_URL`        | Override Ollama URL                      |
-| `SQLWHISPER_OLLAMA__MODEL`           | Override model                           |
-| `SQLWHISPER_APP__MAX_ROWS`           | Override row limit                       |
+| Variable                             | Description                                    |
+| ------------------------------------ | ---------------------------------------------- |
+| `APP_ENV`                            | `"development"` / `"staging"` / `"production"` |
+| `SQLWHISPER_DATABASES__<ALIAS>__URL` | DB connection URL (contains credentials)       |
+| `SQLWHISPER_OLLAMA__BASE_URL`        | Override Ollama URL                            |
+| `SQLWHISPER_OLLAMA__MODEL`           | Override model                                 |
+| `SQLWHISPER_APP__MAX_ROWS`           | Override row limit                             |
 
 All `config/config.yaml` values are overridable via `SQLWHISPER_<SECTION>__<KEY>` env vars.
 
@@ -219,7 +221,8 @@ make test-cov   # tests with HTML coverage report → htmlcov/
 make lint-fix   # auto-fix ruff violations
 make type       # mypy --strict
 make pc-all     # run all pre-commit hooks on every file
-make pc-run HOOK=ruff   # run a single hook
+make pc-run HOOK=ruff   # run a single hook by id
+make pc-update  # bump all hook versions (then pin + commit)
 ```
 
 ### pre-commit hooks
@@ -228,6 +231,8 @@ make pc-run HOOK=ruff   # run a single hook
 | --------------------- | ----------------------------------------- |
 | `trailing-whitespace` | no trailing spaces                        |
 | `end-of-file-fixer`   | files end with newline                    |
+| `check-ast`           | Python files parse cleanly                |
+| `detect-private-key`  | no accidental key commits                 |
 | `no-commit-to-branch` | protects `master`, `develop`, `release/*` |
 | `ruff`                | lint + format                             |
 | `bandit`              | security issues                           |
@@ -241,28 +246,29 @@ make pc-run HOOK=ruff   # run a single hook
 ```mermaid
 flowchart LR
     Q[User question] --> LLM[LLM]
-    LLM --> V[Validator\nBLOCKED_KEYWORDS]
-    V -->|DROP / DELETE\nUPDATE / INSERT\nTRUNCATE / ALTER\nGRANT / EXEC ...| BLOCK([Blocked — hard stop])
+    LLM --> V[Validator\nBLOCKED_KEYWORDS\nAST-level · case-insensitive · full-token]
+    V -->|DROP / DELETE / UPDATE\nINSERT / TRUNCATE / ALTER\nGRANT / REVOKE / EXEC\nCREATE / REPLACE / MERGE / CALL| BLOCK([Blocked — hard stop\nno retry])
     V -->|safe| EX[Executor\nread-only session]
-    EX -->|LIMIT 500\nenforced| R([Results])
+    EX -->|LIMIT 500\nhard-appended| R([Results])
 ```
 
 Two independent guards — if both fail, nothing writes:
 
-1. **Validator** (`src/validation/safety.py`) — AST-level blocklist check before any execution
-2. **Executor** (`src/database/executor.py`) — read-only SQLAlchemy session + hard `LIMIT 500` append
+1. **Validator** (`src/validation/safety.py`) — AST-level blocklist check before any execution; hard block with no retry
+2. **Executor** (`src/database/executor.py`) — read-only SQLAlchemy session + hard `LIMIT 500` append regardless of LLM output
 
 ---
 
 ## Risks & mitigations
 
-| Risk                             | Mitigation                                                                  |
-| -------------------------------- | --------------------------------------------------------------------------- |
-| `sqlcoder:7b` needs 8 GB VRAM    | Fallback to `deepseek-coder:6.7b` (6.5 GB); config-driven                   |
-| Schema too large for context     | Keyword selector caps at 5 tables; warns if DB has >50 tables               |
-| LLM ignores LIMIT rule           | Executor appends `LIMIT 500` unconditionally after generation               |
-| Hallucinated column names        | Validator diffs against schema cache; correction prompt names valid columns |
-| Dialect-specific syntax failures | `sqlglot` dialect param set per DB; tested per dialect separately           |
+| Risk                                       | Mitigation                                                                                                     |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `sqlcoder:7b` needs 8 GB VRAM              | Fallback to `deepseek-coder:6.7b` (6.5 GB); config-driven                                                      |
+| Schema too large for context               | Keyword selector caps at 5 tables; warns if DB has >50 tables                                                  |
+| LLM ignores LIMIT rule                     | Executor appends `LIMIT 500` unconditionally after generation                                                  |
+| Hallucinated column names                  | Validator diffs AST refs against schema cache; correction prompt includes dialect + schema + original question |
+| Dialect-specific syntax failures           | `sqlglot` dialect param set per DB config; tested per dialect separately                                       |
+| `HISTORY_DB_PATH` wrong location in Docker | Anchored to project root via `Path(__file__).resolve()` — CWD-independent                                      |
 
 ---
 

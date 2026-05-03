@@ -15,7 +15,7 @@ ollama:
 
 # DB dialect per alias — URLs must come from .env (they contain credentials).
 # Do NOT add database entries here; they are constructed fully from .env.
-# See .env.example for the required SQLWHISPER__DATABASES__<ALIAS>__URL pattern.
+# See .env.example for the required SQLWHISPER_DATABASES__<ALIAS>__URL pattern.
 databases: {}
 
 app:

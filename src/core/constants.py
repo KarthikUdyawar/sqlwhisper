@@ -7,6 +7,7 @@ significance, live here.  Import from this module; never hard-code.
 from __future__ import annotations
 
 from enum import StrEnum
+from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Supported SQL dialects
@@ -92,8 +93,17 @@ Question: {question}
 
 SQL:"""
 
+# Correction prompt includes dialect + schema so the LLM has full context
+# when resolving hallucinated column names or dialect-specific syntax errors.
 CORRECTION_PROMPT_TEMPLATE = """\
 The following SQL is invalid.
+
+Dialect: {dialect}
+
+Schema:
+{schema_subset}
+
+Original question: {question}
 
 SQL:
 {sql}
@@ -122,7 +132,10 @@ APP_TITLE = "SQLWhisper"
 APP_ICON = "🔍"
 STREAMLIT_PORT = 8501
 
-HISTORY_DB_PATH = "sqlwhisper_history.db"  # SQLite file for query log
+# Anchored to the project root so the path is CWD-independent at runtime
+# and consistent inside Docker (where CWD may differ from the project root).
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+HISTORY_DB_PATH: Path = _PROJECT_ROOT / "sqlwhisper_history.db"
 
 # Result formatting
 CSV_EXPORT_FILENAME = "sqlwhisper_results.csv"

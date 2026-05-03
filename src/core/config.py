@@ -8,6 +8,10 @@ Loading strategy (highest priority wins):
 
 Secrets (DB URLs, API keys) → .env only, never config.yaml.
 Non-secret tunables (timeouts, limits, model names) → config/config.yaml.
+
+Env var format: SQLWHISPER_<SECTION>__<KEY>
+  e.g. SQLWHISPER_OLLAMA__TIMEOUT_SECONDS=60
+       SQLWHISPER_DATABASES__DEFAULT__URL=postgresql://...
 """
 
 from __future__ import annotations
@@ -48,6 +52,22 @@ def _load_yaml(path: Path) -> dict[str, Any]:
         with path.open() as fh:
             return yaml.safe_load(fh) or {}
     return {}
+
+
+def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """Recursively merge *override* into *base*, returning a new dict.
+
+    - dict values are merged key-by-key (nested sections are not replaced wholesale)
+    - all other types: override wins
+    """
+    result = dict(base)
+    for key, override_val in override.items():
+        base_val = result.get(key)
+        if isinstance(base_val, dict) and isinstance(override_val, dict):
+            result[key] = _deep_merge(base_val, override_val)
+        else:
+            result[key] = override_val
+    return result
 
 
 def _resolve_env_file() -> list[str]:
@@ -136,13 +156,17 @@ class Settings(BaseSettings):
     @model_validator(mode="before")
     @classmethod
     def _merge_yaml_defaults(cls, values: Any) -> Any:
-        """Merge config.yaml into defaults before env vars are applied."""
-        yaml_data = _load_yaml(_CONFIG_YAML)
+        """Deep-merge config.yaml into defaults before env vars are applied.
+
+        Uses _deep_merge so that a partial env-derived nested dict (e.g.
+        values["ollama"] = {"timeout_seconds": 60}) does not wipe out other
+        yaml keys like base_url or model — only the provided keys override.
+        """
         if not isinstance(values, dict):
             return values
-        # yaml_data is the base; explicit values (env/init) win
-        merged: dict[str, Any] = {**yaml_data, **values}
-        return merged
+        yaml_data = _load_yaml(_CONFIG_YAML)
+        # yaml_data is the base; explicit values (env / __init__ kwargs) win
+        return _deep_merge(yaml_data, values)
 
     @classmethod
     def from_yaml(cls, yaml_path: Path | None = None) -> Settings:
