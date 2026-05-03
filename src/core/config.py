@@ -1,7 +1,7 @@
 """SQLWhisper configuration.
 
 Loading strategy (highest priority wins):
-  1. Environment variables  (SQLWHISPER__*)
+  1. Environment variables  (SQLWHISPER_*)
   2. .env.<APP_ENV> file    (e.g. .env.development)
   3. .env file              (base fallback)
   4. config/config.yaml     (non-secret defaults)
