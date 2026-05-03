@@ -34,7 +34,16 @@ OLLAMA_BASE_URL = "http://localhost:11434"
 OLLAMA_GENERATE_PATH = "/api/generate"
 
 OLLAMA_TIMEOUT_SECONDS = 30
-OLLAMA_MAX_TOKENS = 1024  # max tokens to generate for SQL response
+OLLAMA_TIMEOUT_MIN = 1
+OLLAMA_TIMEOUT_MAX = 300
+OLLAMA_MAX_TOKENS = 1024
+
+APP_MAX_ROWS_MIN = 1
+APP_MAX_ROWS_MAX = 10_000
+APP_MAX_RETRIES_MIN = 1
+APP_MAX_RETRIES_MAX = 10
+APP_MAX_TABLES_MIN = 1
+APP_MAX_TABLES_MAX = 20  # max tokens to generate for SQL response
 
 
 # ---------------------------------------------------------------------------

@@ -35,20 +35,33 @@ class TestDialect:
 
 
 class TestBlockedKeywords:
-    REQUIRED = {
-        "DROP",
-        "DELETE",
-        "UPDATE",
-        "INSERT",
-        "TRUNCATE",
-        "ALTER",
-        "GRANT",
-        "EXEC",
-    }
+    # Immutable, must exactly match BLOCKED_KEYWORDS — catches removals and additions.
+    REQUIRED: frozenset[str] = frozenset(
+        {
+            "DROP",
+            "DELETE",
+            "UPDATE",
+            "INSERT",
+            "TRUNCATE",
+            "ALTER",
+            "GRANT",
+            "REVOKE",
+            "EXEC",
+            "EXECUTE",
+            "CREATE",
+            "REPLACE",
+            "MERGE",
+            "CALL",
+        }
+    )
 
     def test_required_keywords_present(self) -> None:
         missing = self.REQUIRED - BLOCKED_KEYWORDS
         assert not missing, f"Missing blocked keywords: {missing}"
+
+    def test_no_unexpected_keywords_added(self) -> None:
+        extra = BLOCKED_KEYWORDS - self.REQUIRED
+        assert not extra, f"Unexpected keywords in BLOCKED_KEYWORDS: {extra}"
 
     def test_keywords_uppercase(self) -> None:
         for kw in BLOCKED_KEYWORDS:

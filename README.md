@@ -68,7 +68,7 @@ flowchart LR
 flowchart LR
     A[os.environ\nAPP_ENV] -->|drives| B
 
-    subgraph Priority - highest wins
+    subgraph Priority — highest wins
         direction TB
         B[env vars\nSQLWHISPER_SECTION__KEY] --> C[.env.development\n.env.staging\n.env.production]
         C --> D[.env\nbase fallback]
@@ -98,7 +98,7 @@ flowchart LR
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/KarthikUdyawar/sqlwhisper
+git clone https://github.com/yourname/sqlwhisper
 cd sqlwhisper
 make dev          # install all deps including dev group
 make pc-install   # install pre-commit hooks (once after clone)
@@ -155,8 +155,8 @@ sqlwhisper/
 │       └── SPRINT_1.md
 ├── src/
 │   ├── core/
-│   │   ├── config.py        # pydantic-settings — Settings + sub-models + _deep_merge
-│   │   └── constants.py     # all magic strings, numbers, enums, HISTORY_DB_PATH
+│   │   ├── config.py        # pydantic-settings — Settings + sub-models + _deep_merge + secret guard
+│   │   └── constants.py     # all magic strings, numbers, enums, bounds, HISTORY_DB_PATH
 │   ├── database/
 │   │   ├── connector.py     # SQLAlchemy connect + schema introspect
 │   │   ├── executor.py      # read-only query execution + ResultSet
@@ -171,8 +171,8 @@ sqlwhisper/
 │   │   └── safety.py        # BLOCKED_KEYWORDS enforcement
 │   └── main.py
 ├── tests/
-│   ├── test_config.py       # 43 tests — Settings, sub-models, _deep_merge
-│   └── test_constants.py    # 17 tests — enums, blocklist, templates, paths
+│   ├── test_config.py       # 53 tests — Settings, sub-models, _deep_merge, secret guard, env precedence
+│   └── test_constants.py    # 17 tests — enums, blocklist (exact match), templates, paths
 ├── app.py                   # Streamlit entrypoint
 ├── .env.example
 ├── Makefile

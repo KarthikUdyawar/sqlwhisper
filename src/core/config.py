@@ -25,6 +25,12 @@ from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from core.constants import (
+    APP_MAX_RETRIES_MAX,
+    APP_MAX_RETRIES_MIN,
+    APP_MAX_ROWS_MAX,
+    APP_MAX_ROWS_MIN,
+    APP_MAX_TABLES_MAX,
+    APP_MAX_TABLES_MIN,
     CONFIG_DIR,
     CONFIG_YAML_FILENAME,
     DEFAULT_MODEL,
@@ -35,6 +41,8 @@ from core.constants import (
     MAX_ROWS,
     MAX_TABLES_IN_PROMPT,
     OLLAMA_BASE_URL,
+    OLLAMA_TIMEOUT_MAX,
+    OLLAMA_TIMEOUT_MIN,
     OLLAMA_TIMEOUT_SECONDS,
     SUPPORTED_DIALECTS,
 )
@@ -43,7 +51,7 @@ from core.constants import (
 # Helpers
 # ---------------------------------------------------------------------------
 
-_PROJECT_ROOT = Path(__file__).parent.parent.parent  # …/sqlwhisper/
+_PROJECT_ROOT = Path(__file__).parent.parent.parent
 _CONFIG_YAML = _PROJECT_ROOT / CONFIG_DIR / CONFIG_YAML_FILENAME
 
 
@@ -57,7 +65,7 @@ def _load_yaml(path: Path) -> dict[str, Any]:
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     """Recursively merge *override* into *base*, returning a new dict.
 
-    - dict values are merged key-by-key (nested sections are not replaced wholesale)
+    - dict values merged key-by-key (nested sections not replaced wholesale)
     - all other types: override wins
     """
     result = dict(base)
@@ -71,9 +79,25 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
 
 
 def _resolve_env_file() -> list[str]:
-    """Return env files to load, most-specific first."""
+    """Return env files ordered so the specific file wins (pydantic-settings: later = higher priority)."""
     app_env = os.environ.get("APP_ENV", "development").lower()
-    return [f".env.{app_env}", ".env"]
+    # pydantic-settings v2: last file in list wins → specific env file last
+    return [".env", f".env.{app_env}"]
+
+
+def _assert_no_secrets_in_yaml(
+    data: dict[str, Any], source: str = "config.yaml"
+) -> None:
+    """Raise if yaml data contains database URLs (secrets must come from .env)."""
+    databases = data.get("databases", {})
+    if not isinstance(databases, dict):
+        return
+    for alias, db_cfg in databases.items():
+        if isinstance(db_cfg, dict) and "url" in db_cfg:
+            raise ValueError(
+                f"Secret found in {source}: databases.{alias}.url must not be set in "
+                "config.yaml. DB URLs contain credentials — put them in .env only."
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -89,7 +113,11 @@ class OllamaSettings(BaseSettings):
     base_url: str = OLLAMA_BASE_URL
     model: str = DEFAULT_MODEL
     fallback_model: str = FALLBACK_MODEL
-    timeout_seconds: int = Field(default=OLLAMA_TIMEOUT_SECONDS, ge=1, le=300)
+    timeout_seconds: int = Field(
+        default=OLLAMA_TIMEOUT_SECONDS,
+        ge=OLLAMA_TIMEOUT_MIN,
+        le=OLLAMA_TIMEOUT_MAX,
+    )
 
 
 class DatabaseSettings(BaseSettings):
@@ -119,9 +147,15 @@ class AppSettings(BaseSettings):
 
     model_config = SettingsConfigDict(extra="ignore")
 
-    max_rows: int = Field(default=MAX_ROWS, ge=1, le=10_000)
-    max_retries: int = Field(default=MAX_RETRIES, ge=1, le=10)
-    max_tables_in_prompt: int = Field(default=MAX_TABLES_IN_PROMPT, ge=1, le=20)
+    max_rows: int = Field(default=MAX_ROWS, ge=APP_MAX_ROWS_MIN, le=APP_MAX_ROWS_MAX)
+    max_retries: int = Field(
+        default=MAX_RETRIES, ge=APP_MAX_RETRIES_MIN, le=APP_MAX_RETRIES_MAX
+    )
+    max_tables_in_prompt: int = Field(
+        default=MAX_TABLES_IN_PROMPT,
+        ge=APP_MAX_TABLES_MIN,
+        le=APP_MAX_TABLES_MAX,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -148,9 +182,9 @@ class Settings(BaseSettings):
     databases: dict[str, DatabaseSettings] = Field(default_factory=dict)
     app: AppSettings = Field(default_factory=AppSettings)
 
-    # APP_ENV is read-only meta; not nested under a prefix
+    # Lowercased on load so is_production/is_development comparisons are safe
     app_env: str = Field(
-        default_factory=lambda: os.environ.get("APP_ENV", "development")
+        default_factory=lambda: os.environ.get("APP_ENV", "development").lower()
     )
 
     @model_validator(mode="before")
@@ -158,20 +192,19 @@ class Settings(BaseSettings):
     def _merge_yaml_defaults(cls, values: Any) -> Any:
         """Deep-merge config.yaml into defaults before env vars are applied.
 
-        Uses _deep_merge so that a partial env-derived nested dict (e.g.
-        values["ollama"] = {"timeout_seconds": 60}) does not wipe out other
-        yaml keys like base_url or model — only the provided keys override.
+        Also guards against secrets (databases.*.url) appearing in yaml.
         """
         if not isinstance(values, dict):
             return values
         yaml_data = _load_yaml(_CONFIG_YAML)
-        # yaml_data is the base; explicit values (env / __init__ kwargs) win
+        _assert_no_secrets_in_yaml(yaml_data)
         return _deep_merge(yaml_data, values)
 
     @classmethod
     def from_yaml(cls, yaml_path: Path | None = None) -> Settings:
         """Instantiate with an explicit yaml path (useful in tests)."""
         yaml_data = _load_yaml(yaml_path or _CONFIG_YAML)
+        _assert_no_secrets_in_yaml(yaml_data, source=str(yaml_path or _CONFIG_YAML))
         return cls(**yaml_data)
 
     def db(self, alias: str = "default") -> DatabaseSettings:

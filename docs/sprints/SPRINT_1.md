@@ -35,18 +35,28 @@
 
 **CodeRabbit findings resolved (PR review):**
 
-| Finding                                                        | Fix                                                                       |
-| -------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `CORRECTION_PROMPT_TEMPLATE` missing dialect/schema context    | Added `{dialect}`, `{schema_subset}`, `{question}` placeholders           |
-| `HISTORY_DB_PATH` CWD-dependent bare filename                  | Anchored to `Path(__file__).resolve().parent.parent.parent`               |
-| `_merge_yaml_defaults` shallow merge wiped nested yaml keys    | Replaced with `_deep_merge` recursive helper                              |
-| `.env.example` wrong prefix `SQLWHISPER__*`                    | Fixed to `SQLWHISPER_<SECTION>__<KEY>` throughout                         |
-| `.env.example` unquoted values                                 | All values now quoted                                                     |
-| `config/config.yaml` comment wrong prefix                      | Fixed to `SQLWHISPER_<SECTION>__<KEY>`                                    |
-| `config.py` docstring wrong prefix                             | Fixed to `SQLWHISPER_*`                                                   |
-| `tests/test_config.py` hardcoded dialect list in parametrize   | Now uses `sorted(SUPPORTED_DIALECTS)`                                     |
-| mypy `additional_dependencies` missing SW-2–5 packages         | Added `sqlglot`, `httpx`, `pandas`, `pandas-stubs`, `ollama`, `streamlit` |
-| `README.md` project-structure block missing language specifier | Changed opening fence to ` ```text `                                      |
+| Finding                                                        | Fix                                                                                         |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `CORRECTION_PROMPT_TEMPLATE` missing dialect/schema context    | Added `{dialect}`, `{schema_subset}`, `{question}` placeholders                             |
+| `HISTORY_DB_PATH` CWD-dependent bare filename                  | Anchored to `Path(__file__).resolve().parent.parent.parent`                                 |
+| `_merge_yaml_defaults` shallow merge wiped nested yaml keys    | Replaced with `_deep_merge` recursive helper                                                |
+| `.env.example` wrong prefix `SQLWHISPER__*`                    | Fixed to `SQLWHISPER_<SECTION>__<KEY>` throughout                                           |
+| `.env.example` unquoted values                                 | All values now quoted                                                                       |
+| `config/config.yaml` comment wrong prefix                      | Fixed to `SQLWHISPER_<SECTION>__<KEY>`                                                      |
+| `config.py` docstring wrong prefix                             | Fixed to `SQLWHISPER_*`                                                                     |
+| `tests/test_config.py` hardcoded dialect list in parametrize   | Now uses `sorted(SUPPORTED_DIALECTS)`                                                       |
+| mypy `additional_dependencies` missing SW-2–5 packages         | Added `sqlglot`, `httpx`, `pandas`, `pandas-stubs`, `ollama`, `streamlit`                   |
+| `README.md` project-structure block missing language specifier | Changed opening fence to ` ```text `                                                        |
+| Hardcoded bounds in `Field(ge=, le=)` validators               | Extracted to `OLLAMA_TIMEOUT_MIN/MAX`, `APP_MAX_ROWS_MIN/MAX`, etc. in `constants.py`       |
+| `app_env` case-sensitive vs lowercase in `_resolve_env_file`   | `app_env` now normalized `.lower()` on load                                                 |
+| `_resolve_env_file` order inverted for pydantic-settings v2    | Order fixed: `[".env", ".env.<APP_ENV>"]` — later file wins                                 |
+| `_merge_yaml_defaults` / `from_yaml` accept secrets from yaml  | Added `_assert_no_secrets_in_yaml` guard — raises on `databases.*.url` in yaml              |
+| `REQUIRED` set in `test_constants.py` mutable + partial subset | Replaced with `frozenset` matching full `BLOCKED_KEYWORDS`; added removal regression test   |
+| `pre-commit` missing `default_language_version: python3.12`    | Added top-level key; removed per-hook `language_version` where redundant                    |
+| mypy `additional_dependencies` included non-pyproject packages | Removed `pydantic>=2.0`, `starlette`, `pandas-stubs`; aligned exactly with `pyproject.toml` |
+| `make cli` pointed to nonexistent `sqlwhisper.cli` module      | Fixed to `PYTHONPATH=src python -m main`                                                    |
+| `pc-update` missing from `.PHONY`                              | Added to `.PHONY` declaration                                                               |
+| `.env.example` sqlite URL quoted (dotenv-linter warning)       | Removed quotes from sqlite URL value                                                        |
 
 **Notes:**
 - Secrets (DB URLs) → `.env` only via `SecretStr`; never in `config.yaml`
@@ -142,7 +152,7 @@
 - [ ] Retry loop resolves hallucinated columns in ≤2 retries
 - [ ] No unhandled exceptions on Ollama timeout, bad SQL, or DB failure
 - [ ] `ruff` + `mypy --strict` pass with zero errors
-- [x] `core/` test coverage ≥ 99% (currently 99.11%, 60 tests)
+- [x] `core/` test coverage ≥ 99% (currently 98.45%, 70 tests)
 - [ ] This sprint document checked off and moved to `docs/sprints/`
 - [ ] No critical bugs remaining in scoped features
 
@@ -162,20 +172,24 @@
 
 ## Decision Log
 
-| Decision                                                | Reason                                                                                              |
-| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `sqlglot` for validation over raw regex                 | AST-level parse catches structural errors regex misses; dialect-aware out of the box                |
-| Keyword matching for table selection (not embeddings)   | Simpler, zero extra dependencies, sufficient for v0.1; embeddings deferred to Sprint 2              |
-| `stdio` transport for MCP deferred                      | Core engine must be solid first; MCP is a thin wrapper, not a foundation                            |
-| `sqlcoder:7b` as primary model                          | Fine-tuned specifically for SQL generation; benchmark in Day 6 determines final default             |
-| Read-only SQLAlchemy session enforced at executor level | Safety belt independent of validator — LLM + validator both fail safe, executor is last guard       |
-| Hard `LIMIT 500` appended by executor                   | LLM ignores prompt rules inconsistently; enforcing at execution time is the only reliable guarantee |
-| `uv` + `[dependency-groups.dev]`                        | Consistent tooling; replaces deprecated `[tool.uv.dev-dependencies]`                                |
-| Streamlit over custom React UI                          | Ships in day not week; focus is engine quality not UI fidelity in Sprint 1                          |
-| Secrets via `SecretStr` + `.env` only                   | DB URLs contain credentials — must never appear in logs, `repr()`, or `config.yaml`                 |
-| All constants in `src/core/constants.py`                | Single source of truth; `BLOCKED_KEYWORDS` and prompt templates version-controlled alongside logic  |
-| `APP_ENV`-driven env file loading                       | `.env.development` / `.env.staging` / `.env.production` — no config changes between environments    |
-| `CORRECTION_PROMPT_TEMPLATE` includes dialect + schema  | LLM needs column names and SQL flavour to resolve hallucinations in ≤2 retries                      |
-| `_deep_merge` for yaml + env layering                   | Shallow merge wiped sibling yaml keys when env provided partial nested override                     |
-| `HISTORY_DB_PATH` anchored to project root              | Bare filename is CWD-dependent — breaks inside Docker where invocation dir may differ               |
-| `.coderabbit.yaml` path instructions per module         | Security-critical paths (`validation/safety.py`, `llm/retry.py`) get explicit reviewer prompts      |
+| Decision                                                     | Reason                                                                                                                              |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `sqlglot` for validation over raw regex                      | AST-level parse catches structural errors regex misses; dialect-aware out of the box                                                |
+| Keyword matching for table selection (not embeddings)        | Simpler, zero extra dependencies, sufficient for v0.1; embeddings deferred to Sprint 2                                              |
+| `stdio` transport for MCP deferred                           | Core engine must be solid first; MCP is a thin wrapper, not a foundation                                                            |
+| `sqlcoder:7b` as primary model                               | Fine-tuned specifically for SQL generation; benchmark in Day 6 determines final default                                             |
+| Read-only SQLAlchemy session enforced at executor level      | Safety belt independent of validator — LLM + validator both fail safe, executor is last guard                                       |
+| Hard `LIMIT 500` appended by executor                        | LLM ignores prompt rules inconsistently; enforcing at execution time is the only reliable guarantee                                 |
+| `uv` + `[dependency-groups.dev]`                             | Consistent tooling; replaces deprecated `[tool.uv.dev-dependencies]`                                                                |
+| Streamlit over custom React UI                               | Ships in day not week; focus is engine quality not UI fidelity in Sprint 1                                                          |
+| Secrets via `SecretStr` + `.env` only                        | DB URLs contain credentials — must never appear in logs, `repr()`, or `config.yaml`                                                 |
+| All constants in `src/core/constants.py`                     | Single source of truth; `BLOCKED_KEYWORDS` and prompt templates version-controlled alongside logic                                  |
+| `APP_ENV`-driven env file loading                            | `.env.development` / `.env.staging` / `.env.production` — no config changes between environments                                    |
+| `CORRECTION_PROMPT_TEMPLATE` includes dialect + schema       | LLM needs column names and SQL flavour to resolve hallucinations in ≤2 retries                                                      |
+| `_deep_merge` for yaml + env layering                        | Shallow merge wiped sibling yaml keys when env provided partial nested override                                                     |
+| `HISTORY_DB_PATH` anchored to project root                   | Bare filename is CWD-dependent — breaks inside Docker where invocation dir may differ                                               |
+| `.coderabbit.yaml` path instructions per module              | Security-critical paths (`validation/safety.py`, `llm/retry.py`) get explicit reviewer prompts                                      |
+| Bound constants (`TIMEOUT_MIN/MAX`, `MAX_ROWS_MIN/MAX` etc.) | Field validators must reference `constants.py` — no magic numbers in `config.py`                                                    |
+| `_assert_no_secrets_in_yaml` guard                           | Fail-fast at load time if `databases.*.url` appears in yaml; prevents accidental secret commit                                      |
+| `_resolve_env_file` order: `.env` first, `.env.<env>` last   | pydantic-settings v2 "later file wins" — specific env file must be last to override base                                            |
+| `app_env` lowercased on load                                 | `_resolve_env_file` already lowercases `APP_ENV`; storing lowercase prevents case-mismatch bugs in `is_production`/`is_development` |

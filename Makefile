@@ -1,5 +1,5 @@
 .PHONY: install dev lint lint-fix type test test-cov check run cli \
-        pc-install pc pc-all pc-push pc-run \
+        pc-install pc pc-all pc-push pc-run pc-update \
         docker-up docker-down clean
 
 # ── Dependencies ──────────────────────────────────────────────────────────────
@@ -64,7 +64,7 @@ run:
 	uv run streamlit run app.py
 
 cli:
-	uv run python -m sqlwhisper.cli $(ARGS)
+	uv run python -m main $(ARGS)
 
 # ── Docker ────────────────────────────────────────────────────────────────────
 docker-up:

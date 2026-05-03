@@ -1,3 +1,6 @@
+default_language_version:
+  python: python3.12
+
 default_install_hook_types:
   - pre-commit
   - pre-push
@@ -61,16 +64,13 @@ repos:
         language_version: python3.12
         args: [ --strict, --pretty, --show-error-codes ]
         additional_dependencies:
-          - pydantic>=2.0
           - pydantic-settings>=2.0
           - pyyaml>=6.0
           - types-PyYAML
-          - sqlalchemy[mypy]>=2.0
+          - sqlalchemy[mypy]
           - fastapi>=0.111
-          - starlette
           - sqlglot>=23.0
           - httpx>=0.27
           - pandas>=2.0
-          - pandas-stubs
           - ollama>=0.2
           - streamlit>=1.35
