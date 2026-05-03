@@ -143,7 +143,7 @@ docker compose up      # → http://localhost:8501 in <60s
 
 ## Project structure
 
-```
+```text
 sqlwhisper/
 ├── config/
 │   └── config.yaml          # non-secret tunables (ollama, app limits)
