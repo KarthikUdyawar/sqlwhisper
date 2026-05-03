@@ -379,7 +379,7 @@ class TestAssertNoSecretsInYaml:
                 }
             }
         }
-        with pytest.raises(ValueError, match="databases.mydb.url"):
+        with pytest.raises(ValueError, match=r"databases\.mydb\.url"):
             _assert_no_secrets_in_yaml(data)
 
     def test_raises_names_the_alias(self) -> None:
@@ -409,7 +409,7 @@ databases:
     dialect: postgresql
 """,
         )
-        with pytest.raises(ValueError, match="databases.secret_db.url"):
+        with pytest.raises(ValueError, match=r"databases\.secret_db\.url"):
             Settings.from_yaml(p)
 
 

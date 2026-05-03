@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from core.constants import (
+    _BLOCKED_LIST,
     BLOCKED_KEYWORDS,
     CORRECTION_PROMPT_TEMPLATE,
     DEFAULT_MODEL,
@@ -92,6 +93,25 @@ class TestPromptTemplates:
         for placeholder in ("{dialect}", "{schema_subset}", "{question}", "{max_rows}"):
             assert placeholder in PROMPT_TEMPLATE, f"Missing {placeholder}"
 
+    def test_prompt_template_includes_full_blocked_list(self) -> None:
+        """Ensure the prompt uses the complete dynamic blocked list."""
+        assert "{_BLOCKED_LIST}" in PROMPT_TEMPLATE, (
+            "Missing {_BLOCKED_LIST} placeholder"
+        )
+
+        # Render it properly for the check
+        rendered = PROMPT_TEMPLATE.format(
+            dialect="sqlite",
+            schema_subset="",
+            question="",
+            max_rows=500,
+            _BLOCKED_LIST=_BLOCKED_LIST,
+        )
+        assert all(kw in rendered for kw in BLOCKED_KEYWORDS), (
+            f"Not all blocked keywords appear in rendered prompt. Missing: "
+            f"{BLOCKED_KEYWORDS - set(rendered.split())}"
+        )
+
     def test_correction_template_has_required_placeholders(self) -> None:
         for placeholder in ("{sql}", "{error}"):
             assert placeholder in CORRECTION_PROMPT_TEMPLATE, f"Missing {placeholder}"
@@ -102,10 +122,15 @@ class TestPromptTemplates:
             schema_subset="users(id, name)",
             question="show all users",
             max_rows=500,
+            _BLOCKED_LIST=_BLOCKED_LIST,
         )
         assert "sqlite" in rendered
         assert "users(id, name)" in rendered
         assert "show all users" in rendered
+        assert "Never use" in rendered
+        # Verify actual blocked keywords are present in rendered prompt
+        for kw in BLOCKED_KEYWORDS:
+            assert kw in rendered, f"Blocked keyword {kw} missing from rendered prompt"
 
     def test_correction_template_format(self) -> None:
         rendered = CORRECTION_PROMPT_TEMPLATE.format(

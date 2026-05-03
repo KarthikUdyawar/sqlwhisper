@@ -15,6 +15,12 @@ from pathlib import Path
 
 
 class Dialect(StrEnum):
+    """Supported SQL dialects in SQLWhisper.
+
+    These values are used both for database connection configuration
+    and for instructing the LLM on the correct SQL dialect to generate.
+    """
+
     POSTGRESQL = "postgresql"
     SQLITE = "sqlite"
     MYSQL = "mysql"
@@ -43,7 +49,7 @@ APP_MAX_ROWS_MAX = 10_000
 APP_MAX_RETRIES_MIN = 1
 APP_MAX_RETRIES_MAX = 10
 APP_MAX_TABLES_MIN = 1
-APP_MAX_TABLES_MAX = 20  # max tokens to generate for SQL response
+APP_MAX_TABLES_MAX = 20  # upper bound for tables included in the prompt schema context
 
 
 # ---------------------------------------------------------------------------
@@ -80,6 +86,8 @@ BLOCKED_KEYWORDS: frozenset[str] = frozenset(
     }
 )
 
+# Derived string for the LLM prompt (keeps prompt and guard always in sync)
+_BLOCKED_LIST = ", ".join(sorted(BLOCKED_KEYWORDS))
 
 # ---------------------------------------------------------------------------
 # Prompt builder
@@ -93,7 +101,7 @@ Schema:
 
 Rules:
 - Return ONLY valid SQL, no explanation, no markdown fences
-- Never use DROP, DELETE, UPDATE, INSERT, TRUNCATE, ALTER
+- Never use {_BLOCKED_LIST}
 - Always alias tables
 - LIMIT {max_rows} rows unless the user specifies otherwise
 - Use exact column names from the schema above

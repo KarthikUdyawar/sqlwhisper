@@ -74,3 +74,14 @@ repos:
           - pandas>=2.0
           - ollama>=0.2
           - streamlit>=1.35
+
+  # ── pydocstyle (Docstring linting) ──────────────────────────────────────────
+  - repo: https://github.com/PyCQA/pydocstyle
+    rev: 6.3.0
+    hooks:
+      - id: pydocstyle
+        files: \.py$
+        exclude: ^tests/|^docs/
+        args:
+          - --convention=google # or pep257 / numpy
+          # - --add-ignore=D100,D101,D102,D103,D104,D105,D107  # ignore common "missing docstring" errors if you prefer

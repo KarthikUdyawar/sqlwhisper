@@ -1,6 +1,6 @@
 .PHONY: install dev lint lint-fix type test test-cov check run cli \
-        pc-install pc pc-all pc-push pc-run pc-update \
-        docker-up docker-down clean
+	pc-install pc pc-all pc-push pc-run pc-update \
+	docker-up docker-down clean
 
 # ── Dependencies ──────────────────────────────────────────────────────────────
 install:
@@ -53,7 +53,10 @@ pc-push:
 
 ## Run a single hook by id, e.g.: make pc-run HOOK=ruff
 pc-run:
-	uv run pre-commit run $(HOOK) --all-files
+	ifndef HOOK
+		$(error HOOK is not set. Usage: make pc-run HOOK=<hook-id>)
+	endif
+		uv run pre-commit run $(HOOK) --all-files
 
 ## Update all hook versions to latest (then pin + commit)
 pc-update:
@@ -64,7 +67,7 @@ run:
 	uv run streamlit run app.py
 
 cli:
-	uv run python -m main $(ARGS)
+	PYTHONPATH=src uv run python -m main $(ARGS)
 
 # ── Docker ────────────────────────────────────────────────────────────────────
 docker-up:

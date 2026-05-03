@@ -135,6 +135,17 @@ class DatabaseSettings(BaseSettings):
     @field_validator("dialect")
     @classmethod
     def dialect_must_be_supported(cls, v: str) -> str:
+        """Validate that the database dialect is supported.
+
+        Args:
+            v: The dialect string to validate.
+
+        Returns:
+            The validated dialect.
+
+        Raises:
+            ValueError: If the dialect is not in SUPPORTED_DIALECTS.
+        """
         if v not in SUPPORTED_DIALECTS:
             raise ValueError(
                 f"Unsupported dialect '{v}'. Choose from: {sorted(SUPPORTED_DIALECTS)}"
@@ -221,10 +232,12 @@ class Settings(BaseSettings):
 
     @property
     def is_production(self) -> bool:
+        """Return True if the application is running in production environment."""
         return self.app_env == "production"
 
     @property
     def is_development(self) -> bool:
+        """Return True if the application is running in development environment."""
         return self.app_env == "development"
 
 
