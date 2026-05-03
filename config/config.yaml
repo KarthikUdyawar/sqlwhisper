@@ -3,7 +3,7 @@
 # Rules:
 #   - NEVER put secrets here (DB passwords, API keys, tokens).
 #   - Secrets go in .env / .env.<environment> (see .env.example).
-#   - Values here are overridable via env vars: SQLWHISPER__<SECTION>__<KEY>
+#   - Values here are overridable via env vars: SQLWHISPER_<SECTION>__<KEY>
 #
 # Loaded by: src/core/config.py → Settings._merge_yaml_defaults()
 
