@@ -1,0 +1,24 @@
+# SQLWhisper — non-secret configuration
+#
+# Rules:
+#   - NEVER put secrets here (DB passwords, API keys, tokens).
+#   - Secrets go in .env / .env.<environment> (see .env.example).
+#   - Values here are overridable via env vars: SQLWHISPER__<SECTION>__<KEY>
+#
+# Loaded by: src/core/config.py → Settings._merge_yaml_defaults()
+
+ollama:
+  base_url: http://localhost:11434
+  model: sqlcoder:7b
+  fallback_model: deepseek-coder:6.7b
+  timeout_seconds: 30
+
+# DB dialect per alias — URLs must come from .env (they contain credentials).
+# Do NOT add database entries here; they are constructed fully from .env.
+# See .env.example for the required SQLWHISPER__DATABASES__<ALIAS>__URL pattern.
+databases: {}
+
+app:
+  max_rows: 500
+  max_retries: 3
+  max_tables_in_prompt: 5
