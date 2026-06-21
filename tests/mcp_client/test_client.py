@@ -13,7 +13,7 @@ from typing import Any
 
 import pytest
 
-from mcp_client.client import MCPClient
+from src.mcp_client.client import MCPClient
 
 # ---------------------------------------------------------------------------
 # Fakes — stand in for mcp.types.Tool / mcp.ClientSession (the boundary).
@@ -133,3 +133,117 @@ class TestConnect:
         tools = await client.connect()
 
         assert tools == []
+
+
+class TestDisconnect:
+    @pytest.mark.asyncio
+    async def test_closes_session_after_connect(self) -> None:
+        exited: list[bool] = []
+
+        @asynccontextmanager
+        async def factory() -> AsyncIterator[_FakeSession]:
+            yield _FakeSession([])
+            exited.append(True)  # runs on __aexit__
+
+        client = MCPClient(factory)
+        await client.connect()
+        await client.disconnect()
+
+        assert exited == [True]
+
+    @pytest.mark.asyncio
+    async def test_disconnect_before_connect_is_noop(self) -> None:
+        client = MCPClient(_factory_for(_FakeSession([])))
+        await client.disconnect()  # must not raise
+
+
+class _FakeCallToolResult:
+    def __init__(self, content: list[Any]) -> None:
+        self.content = content
+
+
+class _FakeSessionWithCallTool(_FakeSession):
+    def __init__(self, tools: list[_FakeTool]) -> None:
+        super().__init__(tools)
+        self.calls: list[tuple[str, dict[str, Any]]] = []
+
+    async def call_tool(
+        self, name: str, arguments: dict[str, Any]
+    ) -> _FakeCallToolResult:
+        self.calls.append((name, arguments))
+        return _FakeCallToolResult([{"rows": [1, 2, 3]}])
+
+
+class TestCallTool:
+    @pytest.mark.asyncio
+    async def test_forwards_name_and_args_to_session(self) -> None:
+        session = _FakeSessionWithCallTool([])
+        client = MCPClient(_factory_for(session))
+        await client.connect()
+
+        result = await client.call_tool("execute_query", {"sql": "SELECT 1"})
+
+        assert session.calls == [("execute_query", {"sql": "SELECT 1"})]
+        assert result.content == [{"rows": [1, 2, 3]}]
+
+    @pytest.mark.asyncio
+    async def test_call_tool_before_connect_raises(self) -> None:
+        client = MCPClient(_factory_for(_FakeSessionWithCallTool([])))
+
+        with pytest.raises(RuntimeError, match="not connected"):
+            await client.call_tool("list_tables", {})
+
+
+class _DroppingSession(_FakeSessionWithCallTool):
+    """Fails on first call_tool, succeeds on second."""
+
+    def __init__(self, tools: list[_FakeTool]) -> None:
+        super().__init__(tools)
+        self._call_count = 0
+
+    async def call_tool(
+        self, name: str, arguments: dict[str, Any]
+    ) -> _FakeCallToolResult:
+        self._call_count += 1
+        if self._call_count == 1:
+            raise ConnectionError("session dropped")
+        return await super().call_tool(name, arguments)
+
+
+class TestReconnectOnDrop:
+    @pytest.mark.asyncio
+    async def test_reconnects_and_retries_on_session_error(self) -> None:
+        session = _DroppingSession([])
+        client = MCPClient(_factory_for(session))
+        await client.connect()
+
+        result = await client.call_tool("list_tables", {})
+
+        assert session._call_count == 2
+        assert result.content == [{"rows": [1, 2, 3]}]
+
+    @pytest.mark.asyncio
+    async def test_raises_if_retry_also_fails(self) -> None:
+        calls: list[int] = []
+
+        @asynccontextmanager
+        async def factory() -> AsyncIterator[_FakeSession]:
+            s = _FakeSessionWithCallTool([])
+
+            # patch call_tool to always fail
+            async def always_fail(
+                name: str, arguments: dict[str, Any]
+            ) -> _FakeCallToolResult:
+                calls.append(1)
+                raise ConnectionError("still down")
+
+            s.call_tool = always_fail  # type: ignore[method-assign]
+            yield s
+
+        client = MCPClient(factory)
+        await client.connect()
+
+        with pytest.raises(ConnectionError, match="still down"):
+            await client.call_tool("list_tables", {})
+
+        assert len(calls) == 2  # tried twice

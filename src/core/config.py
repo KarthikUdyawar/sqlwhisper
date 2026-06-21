@@ -24,7 +24,7 @@ import yaml
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from core.constants import (
+from src.core.constants import (
     APP_MAX_RETRIES_MAX,
     APP_MAX_RETRIES_MIN,
     APP_MAX_ROWS_MAX,

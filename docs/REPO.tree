@@ -3,6 +3,7 @@ sqlwhisper
 ├── config
 │   └── config.yaml
 ├── docs
+│   ├── HANDOFF.md
 │   ├── PRD.md
 │   ├── REPO.tree
 │   └── TODO.md
@@ -19,6 +20,7 @@ sqlwhisper
 │   │   ├── config.py
 │   │   ├── constants.py
 │   │   └── __init__.py
+│   ├── __init__.py
 │   ├── main.py
 │   └── mcp_client
 │       ├── client.py
@@ -26,10 +28,13 @@ sqlwhisper
 ├── tests
 │   ├── conftest.py
 │   ├── core
+│   │   ├── __init__.py
 │   │   ├── test_config.py
 │   │   └── test_constants.py
+│   ├── __init__.py
 │   └── mcp_client
-│       └── client.py
+│       ├── __init__.py
+│       └── test_client.py
 └── uv.lock
 
-8 directories, 24 files
+8 directories, 29 files

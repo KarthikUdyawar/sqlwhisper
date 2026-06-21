@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from core.constants import (
+from src.core.constants import (
     _BLOCKED_LIST,
     APPROVAL_MODE_DEFAULT,
     BLOCKED_KEYWORDS,

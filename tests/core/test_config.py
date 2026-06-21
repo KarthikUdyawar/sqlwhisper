@@ -9,7 +9,7 @@ from unittest.mock import patch
 import pytest
 from pydantic import ValidationError
 
-from core.config import (
+from src.core.config import (
     AppSettings,
     DatabaseSettings,
     MCPServerSettings,
@@ -19,7 +19,7 @@ from core.config import (
     _load_yaml,
     _resolve_env_file,
 )
-from core.constants import (
+from src.core.constants import (
     APP_MAX_RETRIES_MAX,
     APP_MAX_RETRIES_MIN,
     APP_MAX_ROWS_MAX,

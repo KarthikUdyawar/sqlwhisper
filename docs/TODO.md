@@ -40,19 +40,18 @@ Verified: `make check` fully green (ruff/ruff format/mypy/bandit/pydocstyle) + `
 
 ## 2. MCP client layer — `src/mcp_client/` (new, renamed from PRD's `src/mcp/`) (PRD §8)
 
-> **Naming deviation from PRD §15:** `src/mcp/` collides with the pypi `mcp` SDK package under this repo's flat src-as-toplevel-package import layout (`from core.config import ...` pattern means `src/mcp/` would shadow `import mcp`, the actual SDK, inside its own code). Renamed to `src/mcp_client/`. Document this in README/PRD when this section lands.
+> **Naming deviation from PRD §15:** `src/mcp/` collides with the pypi `mcp` SDK package under this repo's flat src-as-toplevel-package import layout. Renamed to `src/mcp_client/`. Document this in README/PRD when this section ships.
 >
-> **Status — in progress, partially unverified:**
-> - `connect()` implemented in `src/mcp_client/client.py`: opens a session via an injected `session_factory`, discovers tools, maps them to Ollama tool-calling schema. Covers the "tool discovery on connect" bullet below.
-> - Design: narrow structural Protocols (`MCPSession`, `MCPTool`, `MCPListToolsResult`) — only the subset of `mcp.ClientSession` actually used. Tests fake these Protocols, never the real SDK. `connection_id` → session mapping deliberately NOT in `MCPClient` — that's the Connection Manager's job (§7/§9.3).
-> - **Blocking:** test file for `connect()` (`tests/mcp_client/test_client.py`, 4 cases) is missing from the last `make check` run — 0% coverage on `client.py`, tests not collected. Add it at that path (mirrors `tests/core/` convention) and confirm green before treating `connect()` as done or starting the next behavior.
-> - Remaining behaviors, in order: `disconnect()` (close session, idempotent) → `call_tool()` (forward to session) → reconnect-once-then-fail on dropped session during `call_tool()`.
+> **Infrastructure fix landed this session:** `pyproject.toml` needed `[tool.hatch.build.targets.wheel] packages = ["src/core", "src/mcp_client"] sources = ["src"]` + `tests/core/__init__.py` + `tests/mcp_client/__init__.py` + `sys.path.insert` at top of `tests/conftest.py` to fix WSL editable-install `.pth` malformation that prevented pytest from importing `core.*`.
 
-- [ ] `MCPClient` wrapper: open/close session over stdio (default) and SSE (documented, not required for v2.0 launch)
-- [ ] Tool discovery on connect: map MCP server tools → Ollama tool schema format
+- [x] `MCPClient` wrapper: open/close session over stdio (default); SSE documented, not required for v2.0
+- [x] Tool discovery on connect: map MCP server tools → Ollama tool schema format
+- [x] `disconnect()` — close session, idempotent if not connected
+- [x] `call_tool()` — forward name+args to session, return raw result
+- [x] Reconnect-once-then-fail behavior on dropped MCP session during `call_tool()`
+- [x] Unit tests: 10 cases, 100% coverage on `client.py`, 92/92 passed, 96.91% total
 - [ ] `list_tables`, `describe_table`, `execute_query` tool definitions wired to the PostgreSQL MCP server
-- [ ] Session lifecycle tied to `connection_id` (open on `/connect`, close on `/disconnect` or timeout)
-- [ ] Reconnect-once-then-fail behavior on dropped MCP session
+- [ ] Session lifecycle tied to `connection_id` (open on `/connect`, close on `/disconnect` or timeout) — Connection Manager (§7)
 - [ ] Integration test against a real (containerized) PostgreSQL MCP server
 
 ## 3. Agent / tool-calling loop — `src/agents/` (new) (PRD §5.3)

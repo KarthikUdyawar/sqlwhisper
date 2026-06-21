@@ -14,8 +14,8 @@ from pathlib import Path
 
 import pytest
 
-import core.config as config_module
-from core.config import Settings
+import src.core.config as config_module
+from src.core.config import Settings
 
 
 @pytest.fixture(autouse=True)

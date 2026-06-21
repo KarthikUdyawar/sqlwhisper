@@ -45,6 +45,10 @@ class MCPSession(Protocol):
         """Return the tools exposed by the connected server."""
         ...
 
+    async def call_tool(self, name: str, arguments: dict[str, Any]) -> Any:
+        """Invoke a tool on the connected server and return its result."""
+        ...
+
 
 SessionFactory = Callable[[], AbstractAsyncContextManager[MCPSession]]
 
@@ -84,3 +88,31 @@ class MCPClient:
         await self._session.initialize()
         result = await self._session.list_tools()
         return [_to_ollama_tool(tool) for tool in result.tools]
+
+    async def disconnect(self) -> None:
+        """Close the session if open; no-op if not connected."""
+        if self._session_cm is not None:
+            await self._session_cm.__aexit__(None, None, None)
+            self._session_cm = None
+            self._session = None
+
+    async def call_tool(self, name: str, arguments: dict[str, Any]) -> Any:
+        """Forward a tool call to the session, reconnecting once on failure.
+
+        Args:
+            name (str): Tool name to invoke.
+            arguments (dict[str, Any]): Arguments to pass to the tool.
+
+        Returns:
+            Any: Raw result from the MCP session.
+
+        Raises:
+            RuntimeError: If called before connect().
+        """
+        if self._session is None:
+            raise RuntimeError("not connected — call connect() first")
+        try:
+            return await self._session.call_tool(name, arguments)
+        except Exception:
+            await self.connect()
+            return await self._session.call_tool(name, arguments)
