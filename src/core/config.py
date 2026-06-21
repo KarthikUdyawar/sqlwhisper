@@ -31,6 +31,8 @@ from core.constants import (
     APP_MAX_ROWS_MIN,
     APP_MAX_TABLES_MAX,
     APP_MAX_TABLES_MIN,
+    APP_MAX_TOOL_CALLS_MAX,
+    APP_MAX_TOOL_CALLS_MIN,
     CONFIG_DIR,
     CONFIG_YAML_FILENAME,
     DEFAULT_MODEL,
@@ -40,6 +42,7 @@ from core.constants import (
     MAX_RETRIES,
     MAX_ROWS,
     MAX_TABLES_IN_PROMPT,
+    MAX_TOOL_CALLS_PER_TURN,
     OLLAMA_BASE_URL,
     OLLAMA_TIMEOUT_MAX,
     OLLAMA_TIMEOUT_MIN,
@@ -153,6 +156,38 @@ class DatabaseSettings(BaseSettings):
         return v
 
 
+class MCPServerSettings(BaseSettings):
+    """One MCP server entry — stdio (command/args) or sse (url) transport.
+
+    Mirrors DatabaseSettings: non-secret, safe in config.yaml. PRD §8 recommends
+    stdio as the v2.0 default transport; sse is documented for the multi-tenant
+    upgrade path.
+    """
+
+    model_config = SettingsConfigDict(extra="ignore")
+
+    transport: str = "stdio"
+    command: str | None = None
+    args: list[str] = Field(default_factory=list)
+    url: str | None = None
+
+    @model_validator(mode="after")
+    def _transport_has_required_fields(self) -> MCPServerSettings:
+        """Validate transport-specific required fields are present.
+
+        Returns:
+            The validated MCPServerSettings instance.
+
+        Raises:
+            ValueError: If stdio is missing `command` or sse is missing `url`.
+        """
+        if self.transport == "stdio" and not self.command:
+            raise ValueError("transport 'stdio' requires 'command'")
+        if self.transport == "sse" and not self.url:
+            raise ValueError("transport 'sse' requires 'url'")
+        return self
+
+
 class AppSettings(BaseSettings):
     """Application-level tunables — all non-secret, safe in config.yaml."""
 
@@ -166,6 +201,11 @@ class AppSettings(BaseSettings):
         default=MAX_TABLES_IN_PROMPT,
         ge=APP_MAX_TABLES_MIN,
         le=APP_MAX_TABLES_MAX,
+    )
+    max_tool_calls_per_turn: int = Field(
+        default=MAX_TOOL_CALLS_PER_TURN,
+        ge=APP_MAX_TOOL_CALLS_MIN,
+        le=APP_MAX_TOOL_CALLS_MAX,
     )
 
 
@@ -191,6 +231,7 @@ class Settings(BaseSettings):
 
     ollama: OllamaSettings = Field(default_factory=OllamaSettings)
     databases: dict[str, DatabaseSettings] = Field(default_factory=dict)
+    mcp_servers: dict[str, MCPServerSettings] = Field(default_factory=dict)
     app: AppSettings = Field(default_factory=AppSettings)
 
     # Lowercased on load so is_production/is_development comparisons are safe

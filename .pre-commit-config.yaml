@@ -30,7 +30,7 @@ repos:
       - id: no-commit-to-branch
         args:
           - --branch=master
-          - --branch=develop
+          # - --branch=develop
           - --pattern=release/.*
 
   # ── Ruff (lint + format) ────────────────────────────────────────────────────

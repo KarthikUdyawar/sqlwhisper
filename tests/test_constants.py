@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from core.constants import (
     _BLOCKED_LIST,
+    APPROVAL_MODE_DEFAULT,
     BLOCKED_KEYWORDS,
     CORRECTION_PROMPT_TEMPLATE,
     DEFAULT_MODEL,
@@ -11,6 +12,7 @@ from core.constants import (
     MAX_RETRIES,
     MAX_ROWS,
     MAX_TABLES_IN_PROMPT,
+    MAX_TOOL_CALLS_PER_TURN,
     OLLAMA_BASE_URL,
     OLLAMA_TIMEOUT_SECONDS,
     PROMPT_TEMPLATE,
@@ -77,8 +79,8 @@ class TestBlockedKeywords:
 
 class TestDefaults:
     def test_ollama_defaults(self) -> None:
-        assert DEFAULT_MODEL == "sqlcoder:7b"
-        assert FALLBACK_MODEL == "deepseek-coder:6.7b"
+        assert DEFAULT_MODEL == "qwen3:8b"
+        assert FALLBACK_MODEL == "qwen3:14b"
         assert OLLAMA_BASE_URL == "http://localhost:11434"
         assert OLLAMA_TIMEOUT_SECONDS == 30
 
@@ -86,6 +88,8 @@ class TestDefaults:
         assert MAX_ROWS == 500
         assert MAX_RETRIES == 3
         assert MAX_TABLES_IN_PROMPT == 5
+        assert MAX_TOOL_CALLS_PER_TURN == 8
+        assert APPROVAL_MODE_DEFAULT is False
 
 
 class TestPromptTemplates:

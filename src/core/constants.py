@@ -33,8 +33,8 @@ SUPPORTED_DIALECTS: frozenset[str] = frozenset(d.value for d in Dialect)
 # Ollama / LLM
 # ---------------------------------------------------------------------------
 
-DEFAULT_MODEL = "sqlcoder:7b"
-FALLBACK_MODEL = "deepseek-coder:6.7b"
+DEFAULT_MODEL = "qwen3:8b"
+FALLBACK_MODEL = "qwen3:14b"
 
 OLLAMA_BASE_URL = "http://localhost:11434"
 OLLAMA_GENERATE_PATH = "/api/generate"
@@ -50,6 +50,8 @@ APP_MAX_RETRIES_MIN = 1
 APP_MAX_RETRIES_MAX = 10
 APP_MAX_TABLES_MIN = 1
 APP_MAX_TABLES_MAX = 20  # upper bound for tables included in the prompt schema context
+APP_MAX_TOOL_CALLS_MIN = 1
+APP_MAX_TOOL_CALLS_MAX = 20  # circuit breaker ceiling for the agent loop
 
 
 # ---------------------------------------------------------------------------
@@ -59,6 +61,10 @@ APP_MAX_TABLES_MAX = 20  # upper bound for tables included in the prompt schema 
 MAX_ROWS = 500  # hard LIMIT appended by executor if missing
 MAX_RETRIES = 3  # validation + LLM correction retry loop
 MAX_TABLES_IN_PROMPT = 5  # schema-context budget
+MAX_TOOL_CALLS_PER_TURN = 8  # agent loop circuit breaker (PRD §5.3)
+APPROVAL_MODE_DEFAULT = (
+    False  # per-connection flag default; off for local/dev (PRD §5.5)
+)
 
 QUERY_HISTORY_LIMIT = 20  # history sidebar entries shown in UI
 

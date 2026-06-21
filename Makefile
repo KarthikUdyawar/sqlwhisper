@@ -9,19 +9,6 @@ install:
 dev:
 	uv sync --dev
 
-# ── Linting / formatting ──────────────────────────────────────────────────────
-lint:
-	uv run ruff check src/ tests/
-	uv run ruff format --check src/ tests/
-
-lint-fix:
-	uv run ruff check --fix src/ tests/
-	uv run ruff format src/ tests/
-
-# ── Type checking ─────────────────────────────────────────────────────────────
-type:
-	uv run mypy src/
-
 # ── Tests ─────────────────────────────────────────────────────────────────────
 test:
 	uv run pytest tests/ -v
@@ -30,7 +17,7 @@ test-cov:
 	uv run pytest tests/ --cov=src --cov-report=html --cov-report=term-missing
 
 # ── Full local CI (lint + type + test) ────────────────────────────────────────
-check: lint type test
+check: pc-all test
 
 # ── pre-commit ────────────────────────────────────────────────────────────────
 ## Install hooks into .git/hooks (run once after clone)

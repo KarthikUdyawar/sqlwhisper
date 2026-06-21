@@ -9,14 +9,19 @@
 
 ollama:
   base_url: http://localhost:11434
-  model: sqlcoder:7b
+  model: qwen3:8b
   fallback_model: deepseek-coder:6.7b
   timeout_seconds: 30
 
-# DB dialect per alias — URLs must come from .env (they contain credentials).
-# Do NOT add database entries here; they are constructed fully from .env.
-# See .env.example for the required SQLWHISPER_DATABASES__<ALIAS>__URL pattern.
-databases: {}
+# DB dialect per alias — non-secret, lives here. The matching URL (secret) comes
+# from .env via SQLWHISPER_DATABASES__<ALIAS>__URL — see .env.example.
+# Every alias with a URL in .env MUST have a matching dialect entry below,
+# or Settings() will fail validation at startup.
+databases:
+  default:
+    dialect: postgresql
+  local:
+    dialect: sqlite
 
 app:
   max_rows: 500

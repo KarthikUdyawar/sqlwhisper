@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from core.config import (
     AppSettings,
     DatabaseSettings,
+    MCPServerSettings,
     OllamaSettings,
     Settings,
     _assert_no_secrets_in_yaml,
@@ -25,11 +26,14 @@ from core.constants import (
     APP_MAX_ROWS_MIN,
     APP_MAX_TABLES_MAX,
     APP_MAX_TABLES_MIN,
+    APP_MAX_TOOL_CALLS_MAX,
+    APP_MAX_TOOL_CALLS_MIN,
     DEFAULT_MODEL,
     FALLBACK_MODEL,
     MAX_RETRIES,
     MAX_ROWS,
     MAX_TABLES_IN_PROMPT,
+    MAX_TOOL_CALLS_PER_TURN,
     OLLAMA_BASE_URL,
     OLLAMA_TIMEOUT_MAX,
     OLLAMA_TIMEOUT_MIN,
@@ -140,6 +144,38 @@ class TestOllamaSettings:
 
 
 # ---------------------------------------------------------------------------
+# MCPServerSettings
+# ---------------------------------------------------------------------------
+
+
+class TestMCPServerSettings:
+    def test_stdio_parses_command_and_args(self) -> None:
+        cfg = MCPServerSettings(transport="stdio", command="npx", args=["-y", "pg-mcp"])
+        assert cfg.command == "npx"
+        assert cfg.args == ["-y", "pg-mcp"]
+
+    def test_stdio_defaults_args_to_empty_list(self) -> None:
+        cfg = MCPServerSettings(transport="stdio", command="npx")
+        assert cfg.args == []
+
+    def test_stdio_missing_command_raises(self) -> None:
+        with pytest.raises(ValidationError, match="stdio' requires 'command'"):
+            MCPServerSettings(transport="stdio")
+
+    def test_sse_parses_url(self) -> None:
+        cfg = MCPServerSettings(transport="sse", url="http://localhost:3001/sse")
+        assert cfg.url == "http://localhost:3001/sse"
+
+    def test_sse_missing_url_raises(self) -> None:
+        with pytest.raises(ValidationError, match="sse' requires 'url'"):
+            MCPServerSettings(transport="sse")
+
+    def test_transport_defaults_to_stdio(self) -> None:
+        cfg = MCPServerSettings(command="npx")
+        assert cfg.transport == "stdio"
+
+
+# ---------------------------------------------------------------------------
 # DatabaseSettings
 # ---------------------------------------------------------------------------
 
@@ -182,6 +218,34 @@ class TestAppSettings:
         assert cfg.max_rows == MAX_ROWS
         assert cfg.max_retries == MAX_RETRIES
         assert cfg.max_tables_in_prompt == MAX_TABLES_IN_PROMPT
+        assert cfg.max_tool_calls_per_turn == MAX_TOOL_CALLS_PER_TURN
+
+    def test_max_tool_calls_per_turn_too_low_raises(self) -> None:
+        with pytest.raises(
+            ValidationError,
+            match=f"greater than or equal to {APP_MAX_TOOL_CALLS_MIN}",
+        ):
+            AppSettings(max_tool_calls_per_turn=APP_MAX_TOOL_CALLS_MIN - 1)
+
+    def test_max_tool_calls_per_turn_too_high_raises(self) -> None:
+        with pytest.raises(
+            ValidationError, match=f"less than or equal to {APP_MAX_TOOL_CALLS_MAX}"
+        ):
+            AppSettings(max_tool_calls_per_turn=APP_MAX_TOOL_CALLS_MAX + 1)
+
+    def test_max_tool_calls_per_turn_boundary_values_accepted(self) -> None:
+        assert (
+            AppSettings(
+                max_tool_calls_per_turn=APP_MAX_TOOL_CALLS_MIN
+            ).max_tool_calls_per_turn
+            == APP_MAX_TOOL_CALLS_MIN
+        )
+        assert (
+            AppSettings(
+                max_tool_calls_per_turn=APP_MAX_TOOL_CALLS_MAX
+            ).max_tool_calls_per_turn
+            == APP_MAX_TOOL_CALLS_MAX
+        )
 
     def test_max_rows_too_low_raises(self) -> None:
         with pytest.raises(
@@ -254,9 +318,28 @@ app:
         assert s.app.max_rows == MAX_ROWS
         assert s.app.max_retries == MAX_RETRIES
 
+    def test_from_yaml_loads_mcp_servers_block(self, tmp_path: Path) -> None:
+        p = _yaml(
+            tmp_path,
+            """
+mcp_servers:
+  postgres:
+    transport: stdio
+    command: npx
+    args: ["-y", "pg-mcp"]
+""",
+        )
+        s = Settings.from_yaml(p)
+        assert s.mcp_servers["postgres"].command == "npx"
+        assert s.mcp_servers["postgres"].args == ["-y", "pg-mcp"]
+
     def test_databases_empty_by_default(self, tmp_path: Path) -> None:
         s = Settings.from_yaml(tmp_path / "nonexistent.yaml")
         assert s.databases == {}
+
+    def test_mcp_servers_empty_by_default(self, tmp_path: Path) -> None:
+        s = Settings.from_yaml(tmp_path / "nonexistent.yaml")
+        assert s.mcp_servers == {}
 
     def test_db_accessor_returns_correct_entry(self, tmp_path: Path) -> None:
         s = Settings.from_yaml(tmp_path / "nonexistent.yaml")
