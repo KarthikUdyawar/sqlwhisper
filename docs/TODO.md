@@ -29,14 +29,24 @@ These surfaced while getting `make check` green on `develop`, before starting se
 
 ## 1. Core / Config (PRD §7, §8)
 
-- [ ] Add `mcp_servers` block to `config/config.yaml` (server command/args or SSE URL, per data source)
-- [ ] Add `Dialect`/model constants for `qwen3:8b` (default) and `qwen3:14b` (fallback) in `src/core/constants.py`
-- [ ] Add `MAX_TOOL_CALLS_PER_TURN` constant + min/max bounds (same pattern as existing `MAX_RETRIES`)
-- [ ] Add `APPROVAL_MODE_DEFAULT` constant
-- [ ] Keep `BLOCKED_KEYWORDS`, `MAX_ROWS`, secret-handling logic in `core/` untouched — confirm nothing here needs to change
-- [ ] Unit tests for new config fields (extend `tests/test_config.py`, `tests/test_constants.py`)
+- [x] Add `mcp_servers` block to `config/config.yaml` (server command/args or SSE URL, per data source)
+- [x] Add `Dialect`/model constants for `qwen3:8b` (default) and `qwen3:14b` (fallback) in `src/core/constants.py`
+- [x] Add `MAX_TOOL_CALLS_PER_TURN` constant + min/max bounds (same pattern as existing `MAX_RETRIES`)
+- [x] Add `APPROVAL_MODE_DEFAULT` constant
+- [x] Keep `BLOCKED_KEYWORDS`, `MAX_ROWS`, secret-handling logic in `core/` untouched — confirm nothing here needs to change
+- [x] Unit tests for new config fields (extend `tests/core/test_config.py`, `tests/core/test_constants.py`)
 
-## 2. MCP client layer — `src/mcp/` (new) (PRD §8)
+Verified: `make check` fully green (ruff/ruff format/mypy/bandit/pydocstyle) + `pytest` 82/82 passed, 81.67% coverage.
+
+## 2. MCP client layer — `src/mcp_client/` (new, renamed from PRD's `src/mcp/`) (PRD §8)
+
+> **Naming deviation from PRD §15:** `src/mcp/` collides with the pypi `mcp` SDK package under this repo's flat src-as-toplevel-package import layout (`from core.config import ...` pattern means `src/mcp/` would shadow `import mcp`, the actual SDK, inside its own code). Renamed to `src/mcp_client/`. Document this in README/PRD when this section lands.
+>
+> **Status — in progress, partially unverified:**
+> - `connect()` implemented in `src/mcp_client/client.py`: opens a session via an injected `session_factory`, discovers tools, maps them to Ollama tool-calling schema. Covers the "tool discovery on connect" bullet below.
+> - Design: narrow structural Protocols (`MCPSession`, `MCPTool`, `MCPListToolsResult`) — only the subset of `mcp.ClientSession` actually used. Tests fake these Protocols, never the real SDK. `connection_id` → session mapping deliberately NOT in `MCPClient` — that's the Connection Manager's job (§7/§9.3).
+> - **Blocking:** test file for `connect()` (`tests/mcp_client/test_client.py`, 4 cases) is missing from the last `make check` run — 0% coverage on `client.py`, tests not collected. Add it at that path (mirrors `tests/core/` convention) and confirm green before treating `connect()` as done or starting the next behavior.
+> - Remaining behaviors, in order: `disconnect()` (close session, idempotent) → `call_tool()` (forward to session) → reconnect-once-then-fail on dropped session during `call_tool()`.
 
 - [ ] `MCPClient` wrapper: open/close session over stdio (default) and SSE (documented, not required for v2.0 launch)
 - [ ] Tool discovery on connect: map MCP server tools → Ollama tool schema format

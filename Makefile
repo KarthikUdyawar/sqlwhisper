@@ -68,3 +68,8 @@ clean:
 	find . -type d -name __pycache__ -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
 	rm -rf .mypy_cache .ruff_cache .pytest_cache htmlcov
+
+tree:
+	tree -a --gitignore -I "__pycache__" \
+	| sed "1s/\./$$(basename "$$PWD")/" \
+	> docs/REPO.tree

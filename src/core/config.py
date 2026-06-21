@@ -141,10 +141,10 @@ class DatabaseSettings(BaseSettings):
         """Validate that the database dialect is supported.
 
         Args:
-            v: The dialect string to validate.
+            v (str): The dialect string to validate.
 
         Returns:
-            The validated dialect.
+            str: The validated dialect.
 
         Raises:
             ValueError: If the dialect is not in SUPPORTED_DIALECTS.
@@ -176,7 +176,7 @@ class MCPServerSettings(BaseSettings):
         """Validate transport-specific required fields are present.
 
         Returns:
-            The validated MCPServerSettings instance.
+            MCPServerSettings: The validated MCPServerSettings instance.
 
         Raises:
             ValueError: If stdio is missing `command` or sse is missing `url`.

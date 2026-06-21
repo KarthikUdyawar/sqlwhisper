@@ -1,0 +1,35 @@
+sqlwhisper
+├── .coderabbit.yaml
+├── config
+│   └── config.yaml
+├── docs
+│   ├── PRD.md
+│   ├── REPO.tree
+│   └── TODO.md
+├── .env.example
+├── .gitignore
+├── LICENSE
+├── Makefile
+├── .pre-commit-config.yaml
+├── pyproject.toml
+├── .python-version
+├── README.md
+├── src
+│   ├── core
+│   │   ├── config.py
+│   │   ├── constants.py
+│   │   └── __init__.py
+│   ├── main.py
+│   └── mcp_client
+│       ├── client.py
+│       └── __init__.py
+├── tests
+│   ├── conftest.py
+│   ├── core
+│   │   ├── test_config.py
+│   │   └── test_constants.py
+│   └── mcp_client
+│       └── client.py
+└── uv.lock
+
+8 directories, 24 files

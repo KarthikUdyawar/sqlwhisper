@@ -1,29 +1,36 @@
-# SQLWhisper — non-secret configuration
-#
-# Rules:
-#   - NEVER put secrets here (DB passwords, API keys, tokens).
-#   - Secrets go in .env / .env.<environment> (see .env.example).
-#   - Values here are overridable via env vars: SQLWHISPER_<SECTION>__<KEY>
-#
-# Loaded by: src/core/config.py → Settings._merge_yaml_defaults()
+# SQLWhisper — non-secret configuration.
+# Secrets (database URLs) NEVER go here — they live in .env only.
+# Every `databases.<alias>` entry below needs a matching
+# `SQLWHISPER_DATABASES__<ALIAS>__URL` in .env (see .env.example).
 
 ollama:
   base_url: http://localhost:11434
   model: qwen3:8b
-  fallback_model: deepseek-coder:6.7b
+  fallback_model: qwen3:14b
   timeout_seconds: 30
 
-# DB dialect per alias — non-secret, lives here. The matching URL (secret) comes
-# from .env via SQLWHISPER_DATABASES__<ALIAS>__URL — see .env.example.
-# Every alias with a URL in .env MUST have a matching dialect entry below,
-# or Settings() will fail validation at startup.
 databases:
   default:
     dialect: postgresql
   local:
     dialect: sqlite
 
+# MCP server registry (PRD §8). stdio is the v2.0 default transport —
+# simplest, matches single-instance Docker deployment. sse is the
+# documented upgrade path for a remote/multi-tenant MCP server; not
+# required for v2.0 launch, kept here as a commented example.
+mcp_servers:
+  postgres:
+    transport: stdio
+    command: npx
+    args: ["-y", "@modelcontextprotocol/server-postgres"]
+
+  # postgres_remote:
+  #   transport: sse
+  #   url: http://localhost:3001/sse
+
 app:
   max_rows: 500
   max_retries: 3
   max_tables_in_prompt: 5
+  max_tool_calls_per_turn: 8

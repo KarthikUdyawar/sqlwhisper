@@ -35,7 +35,7 @@ repos:
 
   # ── Ruff (lint + format) ────────────────────────────────────────────────────
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.12
+    rev: v0.15.18
     hooks:
       - id: ruff
         args: [ --fix ]
@@ -56,7 +56,7 @@ repos:
 
   # ── Mypy (type checking) ────────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.20.2
+    rev: v2.1.0
     hooks:
       - id: mypy
         files: \.pyi?$
@@ -84,4 +84,18 @@ repos:
         exclude: ^tests/|^docs/
         args:
           - --convention=google # or pep257 / numpy
-          # - --add-ignore=D100,D101,D102,D103,D104,D105,D107  # ignore common "missing docstring" errors if you prefer
+          - --add-ignore=D100,D101,D102,D103,D104,D105,D107  # ignore common "missing docstring" errors if you prefer
+
+  # ── pydoclint (docstring vs code consistency) ───────────────────────────────
+  - repo: https://github.com/jsh9/pydoclint
+    rev: 0.8.6   # Check latest at https://github.com/jsh9/pydoclint/releases
+    hooks:
+      - id: pydoclint
+        args:
+          - --style=google   # or numpy / sphinx
+          # Optional useful flags:
+          # - --check-return-types=False
+          # - --check-raises=False
+          # - --ignore=DOC201,DOC202  # ignore specific errors if needed
+        files: \.py$
+        exclude: ^tests/|^docs/   # adjust as needed
