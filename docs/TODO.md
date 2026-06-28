@@ -56,16 +56,19 @@ Verified: `make check` fully green (ruff/ruff format/mypy/bandit/pydocstyle) + `
 
 ## 3. Agent / tool-calling loop — `src/agents/` (new) (PRD §5.3)
 
-- [ ] Implement the `loop until final answer or MAX_TOOL_CALLS_PER_TURN` orchestrator
-- [ ] Wire Ollama chat-with-tools API (replaces `/api/generate` single-shot call)
-- [ ] Route every `execute_query` tool call through the safety gate (§4 below) before forwarding to MCP
-- [ ] Tool-loop-exhausted handling: surface last attempted SQL + friendly error (`TOOL_LOOP_EXHAUSTED`)
-- [ ] Conversation memory: replay last N `chat_history` turns into the message list
+- [x] Implement the `loop until final answer or MAX_TOOL_CALLS_PER_TURN` orchestrator
+- [x] Wire Ollama chat-with-tools API (replaces `/api/generate` single-shot call)
+- [x] Route every `execute_query` tool call through the safety gate (§4 below) before forwarding to MCP
+- [x] Tool-loop-exhausted handling: surface last attempted SQL + friendly error (`TOOL_LOOP_EXHAUSTED`)
+- [x] Conversation memory: replay last N `chat_history` turns into the message list
 - [ ] Context-window overflow handling: summarize older turns instead of dropping (`CTX_OVERFLOW`)
 - [ ] Remove `src/llm/retry.py` (correction-prompt logic superseded by tool-call error feedback)
 - [ ] Update `src/llm/client.py` to call Ollama's chat+tools endpoint instead of `/api/generate`
 - [ ] Update `src/llm/prompt.py`: system prompt now describes available tools + explicitly instructs the model to treat tool results as untrusted data, not instructions (prompt-injection mitigation)
-- [ ] Unit tests: happy path, tool error → self-correction, loop exhaustion, follow-up question resolution
+- [ ] Unit tests: happy path, tool error → self-correction, loop exhaustion, follow-up question resolution ✅ done above
+
+- [ ] **Follow-up:** `TurnResult.sql` always `None` — wire extraction from `execute_query` args on successful call
+
 
 ## 4. Safety gate — `src/validation/` (kept, re-pointed) (PRD §5.4, §13)
 

@@ -1,74 +1,76 @@
-# Handoff — SQLWhisper 2.0, §3 Agent loop
+# Handoff — SQLWhisper 2.0, §4 Safety Gate
 
-Source of truth: `docs/PRD.md` (v2.0) §5.3, `docs/TODO.md` §3. Read both first.
+Source of truth: `docs/PRD.md` (v2.0) §5.4, `docs/TODO.md` §4. Read both first.
 
 ## Current state
 
 **§1 Core/Config — COMPLETE.** 92/92 tests, 96.91% coverage.
 
-**§2 MCP client layer — COMPLETE (unit slices).** `make check` fully green.
+**§2 MCP client layer — COMPLETE (unit slices).** 100% coverage on `client.py`.
 
-- `src/mcp_client/client.py`: `MCPClient` with `connect()`, `disconnect()`, `call_tool()`, reconnect-once-then-raise. 100% coverage.
-- `tests/mcp_client/test_client.py`: 10 cases across 4 behaviors.
-- Deferred (not blocking §3): PG MCP server wiring, `connection_id` lifecycle, integration test.
+**§3 Agent loop — COMPLETE.** 98/98 tests, 97.45% total coverage.
 
-**Infrastructure fixes landed this session (not in PRD scope):**
-- `pyproject.toml`: `[tool.hatch.build.targets.wheel]` needed `packages = ["src/core", "src/mcp_client"]` + `sources = ["src"]` — hatchling wasn't exposing `src/` subpackages as top-level imports.
-- `tests/core/__init__.py` + `tests/mcp_client/__init__.py` added — missing `__init__.py` caused namespace collision (`core` test package shadowing `core` src package).
-- `tests/conftest.py`: `sys.path.insert(0, str(Path(__file__).parent.parent / "src"))` before project imports — WSL `/mnt/d/` filesystem causes editable install `.pth` file to be written without trailing newline, making Python skip the entry.
-- Every new `src/` subpackage needs adding to `packages` list in `pyproject.toml` + its own `tests/<pkg>/__init__.py`.
+- `src/agents/loop.py`: `AgentLoop` with `run_turn()` → `TurnResult`.
+- `tests/agents/test_loop.py`: 6 cases covering all approved behaviors.
+- `loop.py` 100% coverage, all linters/mypy/pydoclint clean.
 
-**§3 Agent loop — NOT STARTED.**
+**Known gap (not blocking §4):** `TurnResult.sql` always `None` — not yet extracted
+from `execute_query` args on success. Track as follow-up after §4 or wire in §4.
 
-## Design decisions for §3 (confirm with user before coding)
+**Infrastructure notes (carry forward from §2 handoff):**
+- Every new `src/` package: add to `pyproject.toml` `packages` list + add `tests/<pkg>/__init__.py`.
+- `tests/conftest.py` has `sys.path.insert` workaround for WSL editable-install `.pth` issue.
+- pydoclint requires type hints in docstring arg list AND class-level docstring for `__init__` args (not on `__init__` method itself).
 
-Proposed interface:
+## Behaviors implemented in §3
+
+1. Happy path — model returns final text, no tool calls
+2. Single tool call → result fed back → final answer
+3. `execute_query` → safety gate → blocked = tool error result (not exception)
+4. Loop exhaustion at `max_tool_calls` → `exhausted=True`
+5. Tool error (MCP raises) → error string as tool result → model self-corrects
+6. History replay — prior messages passed through unchanged to Ollama
+
+## Design of AgentLoop (for reference)
 
 ```python
 # src/agents/loop.py
-class AgentLoop:
-    def __init__(
-        self,
-        ollama_client: OllamaClient,
-        mcp_client: MCPClient,
-        safety_gate: SafetyGate,
-        max_tool_calls: int,
-    ) -> None: ...
-
-    async def run_turn(
-        self,
-        messages: list[dict[str, Any]],
-        tools: list[dict[str, Any]],
-    ) -> TurnResult: ...
-```
-
-`TurnResult` — proposed:
-```python
 @dataclass
 class TurnResult:
     answer: str
-    sql: str | None
+    sql: str | None      # ← always None currently; needs wiring
     tool_call_count: int
-    exhausted: bool  # True if hit MAX_TOOL_CALLS_PER_TURN
+    exhausted: bool
+
+class AgentLoop:
+    def __init__(self, ollama_client, mcp_client, safety_gate, max_tool_calls) -> None
+    async def run_turn(self, messages, tools) -> TurnResult
 ```
 
-Behavior priority order (vertical slices, get user approval before starting):
-1. Happy path — model returns final text with no tool calls
-2. Single tool call → result fed back → final answer
-3. `execute_query` routed through safety gate before MCP (blocked → tool error result, not exception)
-4. Loop exhaustion at `MAX_TOOL_CALLS_PER_TURN` → `exhausted=True` in `TurnResult`
-5. Tool error → model receives error as tool result, self-corrects next iteration
-6. Conversation history replay (last N turns prepended to messages)
+Protocols: `OllamaClient`, `MCPClient`, `SafetyGate` — all in `src/agents/loop.py`.
+`SafetyGate.validate(sql: str) -> None` — raises on rejection, silent on pass.
+
+## Next: §4 Safety gate re-pointing (PRD §5.4)
+
+Re-point existing `src/validation/` to gate `execute_query` tool-call args.
+The `SafetyGate` Protocol in `loop.py` already defines the interface — implement
+a concrete class that calls the existing validator stack.
+
+Behavior priority list for §4 (get user approval before starting):
+1. `sqlglot` AST parse rejection → `SafetyGate.validate` raises
+2. `BLOCKED_KEYWORDS` hit → raises
+3. Allow-list pass (`SELECT`, `WITH`, `EXPLAIN`, `SHOW`) → silent
+4. Hard-append `LIMIT {MAX_ROWS}` if missing, before forwarding
+5. Rejection returns structured message (not bare exception string) for model
+
+Confirm with user: implement concrete `SafetyGate` in `src/validation/gate.py`
+satisfying the Protocol in `loop.py`, or rename/restructure existing `safety.py`?
 
 ## Working conventions
 
-- TDD: vertical slices only. One RED test → minimal GREEN → next. No horizontal slicing.
-- Mock only at Protocol boundaries — `OllamaClient`, `MCPClient`, `SafetyGate` all injected, faked in tests via structural Protocols (same pattern as `MCPSession`).
-- User runs `make check` locally, pastes output. No pytest in agent sandbox.
+- TDD: vertical slices only. RED → GREEN → next. No horizontal slicing.
+- Mock only at Protocol boundaries.
+- User runs `make check` locally, pastes output.
 - Caveman ultra mode for conversation. Normal for code/docstrings/commits.
-- Get user approval on interface + behavior priority list before writing first RED test.
-- Every new `src/` package: add to `pyproject.toml` `packages` list + add `tests/<pkg>/__init__.py`.
-
-## Next concrete step
-
-Present behavior priority list to user (above), get approval or adjustments, then write RED test for behavior 1 (happy path — no tool calls).
+- Every new `src/` package: add to `pyproject.toml` packages + `tests/<pkg>/__init__.py`.
+- pydoclint: type hints required in docstring args; `__init__` args go on class docstring.
