@@ -1,7 +1,42 @@
 [project]
 name = "sqlwhisper"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.2.0.dev0"
+description = "Local, privacy-first natural language to SQL. Read-only."
 readme = "README.md"
+authors = [{ name = "KarthikUdyawar", email = "karthikajitudy@gmail.com" }]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "python-multipart>=0.0.9",
+    "httpx>=0.27",
+    "sqlalchemy>=2.0",
+    "psycopg[binary]>=3.2",
+    "sqlglot>=25.0",
+    "pandas>=2.2",
+    "plotly>=5.24",
+    "streamlit>=1.40",
+    "pydantic-settings>=2.5",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.6,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff", "mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["ollama: needs a running Ollama (opt-in)"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.mypy]
+strict = true
+plugins = ["pydantic.mypy"]
