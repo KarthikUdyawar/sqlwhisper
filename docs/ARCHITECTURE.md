@@ -112,7 +112,7 @@ All sync. FastAPI endpoints are plain `def`, so they run in a threadpool. No asy
 | ----- | ----------------------------------------------------------------------------- | -------------------------- |
 | 1     | Prompt rules: single SELECT, exact columns                                    | Most bad output (soft)     |
 | 2     | Validator: AST root must be SELECT/CTE/UNION; write/DDL node anywhere → block | Model emits writes         |
-| 3     | Read-only connection: SQLite `mode=ro`, PG `SET TRANSACTION READ ONLY`        | Validator bug              |
+| 3     | Read-only connection: SQLite `mode=ro`, PG `default_transaction_read_only=on`        | Validator bug              |
 | 4     | LIMIT enforced on AST (default 500)                                           | Huge result sets           |
 | 5     | Statement timeout (default 15 s)                                              | Runaway queries            |
 | 6     | Schema-only prompts: no row data ever sent to the LLM                         | Prompt injection via cells |

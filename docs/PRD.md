@@ -117,7 +117,7 @@ Parse and schema errors → correction prompt. Max 2 retries (3 attempts total),
 Defense in depth. All four apply to every source:
 
 1. Validator (F4)
-2. Read-only connection: SQLite `mode=ro`; Postgres `SET TRANSACTION READ ONLY`
+2. Read-only connection: SQLite `mode=ro`; Postgres `default_transaction_read_only=on`
 3. Hard `LIMIT` (default 500) applied to the AST if missing or larger
 4. Statement timeout (default 15 s)
 
