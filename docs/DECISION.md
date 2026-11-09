@@ -75,7 +75,7 @@ Status values: **Accepted** · **Superseded by D-xx** · **Proposed**
 ## D-07 — Read-only at the executor
 
 **Date:** 2026-11-09 · **Status:** Accepted
-**Decision:** SQLite `mode=ro`; Postgres `SET TRANSACTION READ ONLY`. Applies to all sources.
+**Decision:** SQLite `mode=ro`; Postgres `default_transaction_read_only=on`. Applies to all sources.
 **Why:** Independent of the validator. A bug in either layer alone cannot cause a write. No requirement for a read-only DB role.
 
 ## D-08 — LIMIT enforced on the AST
