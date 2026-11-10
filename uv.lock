@@ -1592,7 +1592,7 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.5" },
     { name = "python-multipart", specifier = ">=0.0.9" },
     { name = "sqlalchemy", specifier = ">=2.0" },
-    { name = "sqlglot", specifier = ">=25.0" },
+    { name = "sqlglot", specifier = ">=30.0" },
     { name = "streamlit", specifier = ">=1.40" },
     { name = "uvicorn", specifier = ">=0.30" },
 ]
