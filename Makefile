@@ -1,5 +1,5 @@
 .RECIPEPREFIX := >
-.PHONY: check lint type test tags
+.PHONY: check lint type test tags smoke
 
 check: lint type test
 
@@ -14,3 +14,6 @@ test:
 
 tags:
 > curl -s $${OLLAMA_URL:-http://localhost:11434}/api/tags | jq .
+
+smoke:
+> uv run pytest -m ollama -s
