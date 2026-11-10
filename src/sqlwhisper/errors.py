@@ -17,10 +17,26 @@ class SchemaIssue(SQLIssue):
 class UnsafeSQL(Exception):
     """Not a single read-only SELECT. Never retried. Maps to HTTP 422."""
 
+    def __init__(self, message: str, sql: str = "") -> None:
+        super().__init__(message)
+        self.sql = sql
+
 
 class QueryTimeout(Exception):
     """Statement ran past the time limit. Maps to HTTP 504."""
 
 
 class QueryFailed(Exception):
-    """The database rejected the query at run time. Maps to HTTP 422."""
+    """The database rejected the query at run time. Retried like SQLIssue, then 422."""
+
+
+class ValidationFailed(Exception):
+    """No working query after all attempts. Maps to HTTP 422, carries the last SQL tried."""
+
+    def __init__(self, message: str, last_sql: str) -> None:
+        super().__init__(message)
+        self.last_sql = last_sql
+
+
+class LLMUnavailable(Exception):
+    """Ollama unreachable, timed out, model missing or bad reply. Maps to HTTP 502."""
