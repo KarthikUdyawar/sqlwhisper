@@ -1,12 +1,14 @@
+import math
 import time
 from collections.abc import Callable
+from decimal import Decimal
 from typing import Any, cast
 
 from sqlalchemy import Connection, text
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlglot import exp
 
-from sqlwhisper.errors import QueryFailed, QueryTimeout
+from sqlwhisper.errors import QueryFailed, QueryTimeout, SourceError
 from sqlwhisper.models import ResultSet
 from sqlwhisper.sources.base import DataSource
 from sqlwhisper.validator import ValidatedSQL
@@ -47,10 +49,26 @@ def _arm_postgres(conn: Connection, timeout_s: float) -> Callable[[], None]:
 _ARM = {"sqlite": _arm_sqlite, "postgres": _arm_postgres}
 
 
+def plain_value(value: Any) -> Any:
+    """Make a DB value JSON-safe: Decimal -> int/float, NaN/inf -> None, bytes -> a placeholder."""
+    if isinstance(value, Decimal):
+        if not value.is_finite():
+            return None
+        return int(value) if value == value.to_integral_value() else float(value)
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, bytes | bytearray | memoryview):
+        return f"<binary {len(value)} bytes>"
+    return value
+
+
 def _translate(error: SQLAlchemyError) -> Exception:
     orig = getattr(error, "orig", None)
-    if getattr(orig, "sqlstate", None) == _PG_CANCELED or str(orig) == "interrupted":
+    sqlstate = getattr(orig, "sqlstate", "")  # psycopg: None when the server never answered
+    if sqlstate == _PG_CANCELED or str(orig) == "interrupted":
         return QueryTimeout("query exceeded the time limit")
+    if isinstance(error, OperationalError) and sqlstate is None:
+        return SourceError("database unreachable")
     lines = str(orig or error).strip().splitlines()
     return QueryFailed(lines[0] if lines else "query failed")
 
@@ -66,7 +84,7 @@ def run(source: DataSource, query: ValidatedSQL, *, max_rows: int, timeout_s: fl
             try:
                 result = conn.execute(statement)
                 columns = list(result.keys())
-                rows = [list(row) for row in result.fetchall()]
+                rows = [[plain_value(v) for v in row] for row in result.fetchall()]
             finally:
                 disarm()
     except SQLAlchemyError as e:

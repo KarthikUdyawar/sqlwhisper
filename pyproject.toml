@@ -29,6 +29,7 @@ dev = [
     "ruff",
     "mypy",
     "pandas-stubs>=3.1.0.261029",
+    "httpx2>=2.16.0",
 ]
 
 [tool.pytest.ini_options]

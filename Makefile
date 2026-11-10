@@ -1,5 +1,5 @@
 .RECIPEPREFIX := >
-.PHONY: check lint type test tags smoke
+.PHONY: check lint type test tags smoke api
 
 check: lint type test
 
@@ -17,3 +17,6 @@ tags:
 
 smoke:
 > uv run pytest -m ollama -s
+
+api:
+> uv run uvicorn sqlwhisper.api:create_app --factory --reload --port 8000

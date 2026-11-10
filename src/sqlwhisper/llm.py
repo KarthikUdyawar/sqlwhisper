@@ -3,7 +3,7 @@ from typing import Protocol
 import httpx
 
 from sqlwhisper.errors import LLMUnavailable
-from sqlwhisper.models import Message
+from sqlwhisper.models import Health, Message
 
 
 class LLMClient(Protocol):
@@ -42,6 +42,18 @@ class OllamaClient:
         if not isinstance(content, str):
             raise LLMUnavailable("unexpected response from Ollama")
         return content
+
+    def health(self) -> Health:
+        """Is Ollama reachable, and is the configured model installed?"""
+        down = Health(ollama=False, model=False, model_name=self._model)
+        try:
+            response = self._http.get("/api/tags", timeout=5)
+            response.raise_for_status()
+            names = {m["name"] for m in response.json()["models"]}
+        except (httpx.HTTPError, ValueError, KeyError, TypeError):
+            return down
+        present = self._model in names or f"{self._model}:latest" in names
+        return Health(ollama=True, model=present, model_name=self._model)
 
 
 def _error_detail(response: httpx.Response) -> str:

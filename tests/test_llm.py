@@ -98,3 +98,38 @@ def test_non_json_success_body() -> None:
     transport = httpx.MockTransport(lambda request: httpx.Response(200, text="<html>"))
     with pytest.raises(LLMUnavailable, match="unexpected"):
         client(transport).complete("s", [])
+
+
+def tags(*names: str) -> httpx.MockTransport:
+    return httpx.MockTransport(
+        lambda request: httpx.Response(200, json={"models": [{"name": n} for n in names]})
+    )
+
+
+def test_health_ok_when_model_installed() -> None:
+    health = client(tags("qwen-test", "other")).health()
+    assert (health.ollama, health.model, health.model_name) == (True, True, "qwen-test")
+
+
+def test_health_matches_latest_tag() -> None:
+    assert client(tags("qwen-test:latest")).health().model is True
+
+
+def test_health_model_missing() -> None:
+    health = client(tags("other:1b")).health()
+    assert (health.ollama, health.model) == (True, False)
+
+
+def test_health_ollama_down() -> None:
+    def refuse(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("refused")
+
+    health = client(httpx.MockTransport(refuse)).health()
+    assert (health.ollama, health.model) == (False, False)
+
+
+@pytest.mark.parametrize(
+    "response", [httpx.Response(500, text="x"), httpx.Response(200, text="<html>")]
+)
+def test_health_bad_response_counts_as_down(response: httpx.Response) -> None:
+    assert client(httpx.MockTransport(lambda request: response)).health().ollama is False
