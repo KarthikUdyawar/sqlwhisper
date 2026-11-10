@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel
 
 
@@ -15,3 +17,11 @@ class Table(BaseModel):
 
 class Schema(BaseModel):
     tables: list[Table]
+
+
+class ResultSet(BaseModel):
+    sql: str
+    columns: list[str]
+    rows: list[list[Any]]
+    truncated: bool
+    elapsed_ms: int
