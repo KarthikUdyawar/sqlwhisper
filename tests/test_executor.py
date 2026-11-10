@@ -1,11 +1,13 @@
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
 import sqlglot
 
-from sqlwhisper.errors import QueryFailed, QueryTimeout
-from sqlwhisper.executor import enforce_limit, run
+from sqlwhisper.errors import QueryFailed, QueryTimeout, SourceError
+from sqlwhisper.executor import enforce_limit, plain_value, run
 from sqlwhisper.sources.csv import CsvSource
+from sqlwhisper.sources.postgres import PostgresSource, parse_postgres_url
 from sqlwhisper.validator import ValidatedSQL, validate
 
 
@@ -135,3 +137,47 @@ def test_timeout_raises_and_connection_stays_usable(tmp_path: Path) -> None:
         run(src, forever, max_rows=10, timeout_s=0.3)
     result = run(src, prepare(src, "SELECT COUNT(*) FROM sales"), max_rows=10, timeout_s=5)
     assert result.rows == [[3]]
+
+
+# ---- JSON-safe values -------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (Decimal("12"), 12),
+        (Decimal("12.00"), 12),
+        (Decimal("12.50"), 12.5),
+        (Decimal("NaN"), None),
+        (Decimal("Infinity"), None),
+        (float("nan"), None),
+        (float("inf"), None),
+        (1.5, 1.5),
+        (7, 7),
+        ("text", "text"),
+        (None, None),
+        (True, True),
+        (b"\x00\xff", "<binary 2 bytes>"),
+        (memoryview(b"abc"), "<binary 3 bytes>"),
+    ],
+)
+def test_plain_value(value: object, expected: object) -> None:
+    assert plain_value(value) == expected
+
+
+def test_decimal_result_is_int_when_whole() -> None:
+    assert isinstance(plain_value(Decimal("35")), int)
+
+
+def test_blob_column_does_not_break_the_result(tmp_path: Path) -> None:
+    src = make_source(tmp_path, rows=1)
+    result = run(src, prepare(src, "SELECT x'00ff' AS b"), max_rows=10, timeout_s=5)
+    assert result.rows == [["<binary 2 bytes>"]]
+
+
+def test_unreachable_postgres_is_a_source_error_not_a_query_error() -> None:
+    src = PostgresSource(parse_postgres_url("postgresql://bob:topsecret@127.0.0.1:1/shop"))
+    tree = sqlglot.parse_one("SELECT 1", read="postgres")
+    with pytest.raises(SourceError, match="unreachable") as exc:
+        run(src, ValidatedSQL(tree, "postgres"), max_rows=10, timeout_s=5)
+    assert "topsecret" not in str(exc.value)
