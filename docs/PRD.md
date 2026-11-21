@@ -35,23 +35,7 @@ Upload one CSV or connect a Postgres URL, ask a question in English, get:
 
 ## Architecture
 
-```bash
-Streamlit UI ──HTTP──▶ FastAPI
-                         │
-   source (CSV | PG URL) │  question + last 3 Q/SQL pairs
-                         ▼
-                 Table selector (keyword, max 5)
-                         ▼
-                 Prompt builder
-                         ▼
-                 LLMClient (Ollama)  ◀─────┐
-                         ▼                 │ correction prompt
-                 Validator (sqlglot) ──fail┘ (max 2 retries)
-                         ▼
-                 Executor (read-only, LIMIT, timeout)
-                         ▼
-                 Chart picker (rules) → ResultSet
-```
+Streamlit UI → FastAPI → table selector → prompt → LLM → validator (retry ≤2) → read-only executor → chart picker. Diagrams live in [ARCHITECTURE.md](ARCHITECTURE.md#5-request-flow-post-query).
 
 UI holds no logic beyond rendering. Plotly figures are built in the UI from a chart spec returned by the API.
 

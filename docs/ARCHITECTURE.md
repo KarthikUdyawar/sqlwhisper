@@ -8,16 +8,11 @@ Describes the code as built through X1-4. Items marked _(X1-n)_ are not built ye
 
 ## 1. System view
 
-```bash
-┌────────────┐   HTTP/JSON    ┌────────────────────────────────────┐
-│ Streamlit  │ ─────────────▶ │ FastAPI (api.py)                   │
-│  ui.py     │ ◀───────────── │   routes → pipeline → executor     │
-└────────────┘                └──────┬───────────────┬─────────────┘
-                                     │               │
-                              ┌──────▼─────┐   ┌─────▼──────────────┐
-                              │ Ollama     │   │ Data sources       │
-                              │ (external) │   │ CSV→SQLite │ PG URL│
-                              └────────────┘   └────────────────────┘
+```mermaid
+flowchart LR
+    UI["Streamlit<br/>ui.py"] -- "HTTP/JSON" --> API["FastAPI<br/>api.py"]
+    API --> LLM[("Ollama<br/>external")]
+    API --> SRC[("Data sources<br/>CSV to SQLite, Postgres URL")]
 ```
 
 Two processes (`api`, `ui`), one image, one Python package. Ollama is external (host, LAN, or another compose project).
@@ -26,13 +21,22 @@ Two processes (`api`, `ui`), one image, one Python package. Ollama is external (
 
 Imports point downward only. A lower layer never imports a higher one.
 
-```bash
-ui.py ───────────────▶ models        (talks to API over HTTP only)
-api.py ──────────────▶ pipeline, charts, sources.registry, history, models
-pipeline.py ─────────▶ validator, prompt, executor, schema, protocols
-validator / prompt / executor / charts / schema   (pure logic)
-sources.* / llm.OllamaClient                      (adapters, implement protocols)
-protocols (sources/base.py, llm.LLMClient), models, settings, errors                       (leaf layer)
+```mermaid
+flowchart TD
+    ui["ui.py"] -- "HTTP only" --> models
+    api["api.py (wiring)"] --> pipeline
+    api --> charts
+    api --> registry["sources.registry"]
+    api --> history
+    api --> models
+    api -. "wires" .-> adapters["sources.*, llm.OllamaClient"]
+    pipeline --> logic["validator, prompt, executor, schema"]
+    pipeline --> protocols["protocols: sources/base.py, llm.LLMClient"]
+    logic --> protocols
+    adapters -- "implement" --> protocols
+    protocols --> leaf["models, settings, errors"]
+    logic --> leaf
+    charts --> leaf
 ```
 
 `pipeline` knows protocols, never `OllamaClient`, `CsvSource` or `PostgresSource`. Wiring happens once, in `api.py`.
@@ -67,46 +71,58 @@ KISS rule: plain functions where there is no state. Classes only for adapters an
 class LLMClient(Protocol):
     def complete(self, system: str, messages: list[Message]) -> str: ...
 
+
 class DataSource(Protocol):
     id: str
-    label: str                      # safe to display and log
+    label: str  # safe to display and log
     dialect: Literal["sqlite", "postgres"]
+
     def engine(self) -> Engine: ...  # read-only engine
     def schema(self) -> Schema: ...  # cached
 
-def validate(sql: str, schema: Schema, dialect: Dialect) -> ValidatedSQL: ...
-    # raises SyntaxIssue | UnsafeSQL | SchemaIssue
 
-def run(source: DataSource, query: ValidatedSQL, *, max_rows: int, timeout_s: float) -> ResultSet: ...
+def validate(
+    sql: str, schema: Schema, dialect: Dialect
+) -> ValidatedSQL: ...  # raises SyntaxIssue | UnsafeSQL | SchemaIssue
+
+
+def run(
+    source: DataSource, query: ValidatedSQL, *, max_rows: int, timeout_s: float
+) -> ResultSet: ...
+
 
 def pick_chart(result: ResultSet) -> ChartSpec | None: ...  # X1-5, not built
 
-def answer(question: str, context: list[QA], source: DataSource,
-           llm: LLMClient, cfg: PipelineConfig) -> Answer: ...  # Answer(result: ResultSet, attempts: int)
-``
+
+def answer(
+    question: str, context: list[QA], source: DataSource, llm: LLMClient, cfg: PipelineConfig
+) -> Answer: ...  # Answer(result: ResultSet, attempts: int)
+```
 
 All sync. FastAPI endpoints are plain `def`, so they run in a threadpool. No async machinery.
 
 ## 5. Request flow: `POST /query`
 
+```mermaid
+flowchart TD
+    A["POST /query"] --> B{"source_id known?"}
+    B -- no --> E400["400 bad_source"]
+    B -- yes --> C["select_tables, system_prompt, conversation (last 3)"]
+    C --> D["llm.complete, extract_sql"]
+    D -- "Ollama down" --> E502["502 llm_unavailable"]
+    D --> F{"validate"}
+    F -- "UnsafeSQL" --> E422a["422 unsafe_sql"]
+    F -- "Syntax or Schema issue" --> G{"attempts left?"}
+    F -- ok --> H{"executor.run"}
+    H -- "QueryTimeout" --> E504["504 query_timeout"]
+    H -- "QueryFailed" --> G
+    G -- "yes: add correction turn" --> D
+    G -- no --> E422b["422 validation_failed + last_sql"]
+    H -- ok --> I["Answer(result, attempts)"]
+    I --> J["api: pick_chart, history.log, build QueryResult"]
 ```
 
-1. api: look up source_id → DataSource           (400 if unknown)
-2. pipeline: schema = source.schema()
-3. schema.select_tables(question, schema, k=5)
-4. prompt.system_prompt(dialect, subset) + prompt.conversation(question, context[-3:])
-5. pipeline.answer, loop attempt = 1..(1 + MAX_RETRIES), validating against the subset:
-     sql = extract_sql(llm.complete(...))                      (502 if Ollama down)
-     try validate(...) then executor.run(...)
-       UnsafeSQL   → stop, no retry               (422 unsafe_sql)
-       Syntax/Schema issue or QueryFailed → prompt.correction(err); continue
-     break
-   exhausted → 422 validation_failed + last_sql
-6. (inside the loop) QueryTimeout is never retried           (504 on timeout)
-7. api: charts.pick_chart(answer.result)   (X1-5)
-8. history.log(...)                               (never stores credentials)
-9. api: return QueryResult = Answer + row_count + chart   (X1-5)
-``
+Attempts: `1 + MAX_RETRIES`. Validation runs against the selected table subset. Chart, history and `QueryResult` are built in `api.py` _(X1-5)_. History never stores credentials.
 
 ## 6. Safety model (defense in depth)
 
