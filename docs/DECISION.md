@@ -40,6 +40,8 @@ Status values: **Accepted** · **Superseded by D-xx** · **Proposed**
 | D-30 | Mermaid diagrams, owned by ARCHITECTURE.md                 | Accepted |
 | D-31 | Executor makes values JSON-safe, maps lost connection to 400 | Accepted |
 | D-32 | `httpx2` as dev dependency for Starlette `TestClient`        | Accepted |
+| D-33 | History is best effort; a failed log never changes the response | Accepted |
+| D-34 | Internal errors log exception type and path only              | Accepted |
 
 ---
 
@@ -240,6 +242,20 @@ Status values: **Accepted** · **Superseded by D-xx** · **Proposed**
 **Decision:** Add `httpx2` to the dev group. Runtime keeps `httpx` for the Ollama client (D-13).
 **Why:** Starlette's `TestClient` deprecates `httpx` in favour of `httpx2` and warns on every test run. Tests use `TestClient`, so the dependency is real even though no file imports it.
 **Cost:** Two HTTP libraries in the lockfile. Revisit when Starlette drops `httpx` support or the runtime client can move.
+
+## D-33 — History is best effort
+
+**Date:** 2026-11-21 · **Status:** Accepted
+**Decision:** `history.log` runs after the answer is known. If it raises `sqlite3.Error`, the API logs a warning with the exception type only and returns the result as if nothing happened. On the failure path the original pipeline error still propagates; a history error never replaces it.
+**Why:** The user's answer matters more than the audit trail. A full disk or locked file must not turn a good query into a 500.
+**Cost:** A silent gap in history, visible only in logs.
+
+## D-34 — Internal errors log type and path only
+
+**Date:** 2026-11-21 · **Status:** Accepted
+**Decision:** The 500 handler logs `unhandled <ExceptionType> on <path>` through `sqlwhisper.api`, with no message and no traceback. The client still gets `{"code": "internal_error", "message": "unexpected error"}`.
+**Why:** Exception text can carry SQL, question text or driver details (privacy principle). The type and path are enough to find the code path.
+**Cost:** Starlette re-raises after the handler, so uvicorn prints its own traceback in the server log. Left alone on purpose: it is local-only and needed for debugging.
 
 ## Template
 

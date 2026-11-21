@@ -176,6 +176,17 @@ Implement
 
 ---
 
+## X1-5b — API hardening (follow-ups from the X1-5 review)
+
+Each item: own branch off `master`, failing test first, `make check`, PR, squash merge.
+
+- [x] `pick_chart` no longer crashes on a numeric plus an all-null column (`feature/x1-5-chart-guard`)
+- [x] `internal_error` handler logs exception type and path, never the message (`feature/x1-5-log-internal-errors`)
+- [ ] `history.log` failure is best effort: warn with the exception type only, return the result, never replace the pipeline error ([D-33](DECISION.md)) (`feature/x1-5-history-best-effort`)
+- [ ] `api.query` logs `ok=False` only for domain errors (`SourceError`, `UnsafeSQL`, `ValidationFailed`, `LLMUnavailable`, `QueryTimeout`), not for unexpected exceptions
+- [ ] Test: a stray `SQLAlchemyError` returns 400 `bad_source` with the fixed message and no driver text
+- [ ] Manual run-through of the X1-5 curl check was done on 2026-11-21 with `data/sales.csv`: upload, schema, bar, line, follow-up, blocked DELETE, history. Add a short curl example to the README
+
 ## Definition of done (sprint)
 
 - [ ] All seven PRs merged
@@ -195,7 +206,5 @@ Multiple CSVs, MySQL, Excel, embeddings, explain-result, suggest-queries, auth, 
 
 - `CsvSource` never disposes its engine; matters once sources can be removed.
 - Validation runs against the selected table subset, so a model that uses a table outside it gets a retry. Intended? Check in the benchmark.
-- `history.log` failing after a good query turns the response into a 500. Decide best effort vs loud.
-- `api.query` logs `ok=False` with empty SQL for any unexpected exception, not only domain errors.
-- The `internal_error` handler logs nothing, so the cause of a 500 is invisible.
-- `pick_chart` raises IndexError on a numeric column plus an all-null column (fix in its own branch, test first).
+- On a 500, uvicorn still prints its own traceback, message included. Kept on purpose for local debugging.
+- First query after a cold start can hit `OLLAMA_TIMEOUT_S=60` (`llm_unavailable`, ReadTimeout). Check in the benchmark.
