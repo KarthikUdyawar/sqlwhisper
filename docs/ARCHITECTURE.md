@@ -2,6 +2,8 @@
 
 Version 0.2. Companion to `PRD.md`. Decisions and reasons live in `DECISION.md`.
 
+Describes the code as built through X1-4. Items marked _(X1-n)_ are not built yet.
+
 ---
 
 ## 1. System view
@@ -26,36 +28,36 @@ Imports point downward only. A lower layer never imports a higher one.
 
 ```bash
 ui.py ───────────────▶ models        (talks to API over HTTP only)
-api.py ──────────────▶ pipeline, sources.registry, history, models
-pipeline.py ─────────▶ validator, prompt, executor, charts, protocols
+api.py ──────────────▶ pipeline, charts, sources.registry, history, models
+pipeline.py ─────────▶ validator, prompt, executor, schema, protocols
 validator / prompt / executor / charts / schema   (pure logic)
 sources.* / llm.OllamaClient                      (adapters, implement protocols)
-protocols, models, settings                       (leaf layer)
+protocols (sources/base.py, llm.LLMClient), models, settings, errors                       (leaf layer)
 ```
 
 `pipeline` knows protocols, never `OllamaClient`, `CsvSource` or `PostgresSource`. Wiring happens once, in `api.py`.
 
 ## 3. Modules
 
-| Module                | Responsibility                                                 | State?       |
-| --------------------- | -------------------------------------------------------------- | ------------ |
-| `settings.py`         | Env → typed settings                                           | none         |
-| `models.py`           | Pydantic request/response models, `Schema`, `ResultSet`        | none         |
-| `errors.py`           | Domain exceptions (see §7)                                     | none         |
-| `sources/base.py`     | `DataSource` protocol                                          | none         |
-| `sources/csv.py`      | CSV → SQLite file, normalise columns, read-only engine         | file on disk |
-| `sources/postgres.py` | Postgres engine, read-only transaction, label without password | engine       |
-| `sources/registry.py` | `source_id → DataSource`                                       | in memory    |
-| `schema.py`           | Introspect, keyword table selector                             | none         |
-| `llm.py`              | `LLMClient` protocol, `OllamaClient` (httpx)                   | none         |
-| `prompt.py`           | Build system prompt + correction prompt                        | none         |
-| `validator.py`        | sqlglot parse → safety → schema check                          | none         |
-| `executor.py`         | Enforce LIMIT on AST, run read-only, timeout                   | none         |
-| `charts.py`           | Result shape → chart spec                                      | none         |
-| `pipeline.py`         | generate → validate → retry → execute → chart                  | none         |
-| `history.py`          | SQLite log of queries                                          | file on disk |
-| `api.py`              | FastAPI routes, error mapping, wiring                          | app state    |
-| `ui.py`               | Streamlit rendering, Plotly figure from chart spec             | session      |
+| Module                | Responsibility                                                                     | State?       |
+| --------------------- | ---------------------------------------------------------------------------------- | ------------ |
+| `settings.py`         | Env → typed settings                                                               | none         |
+| `models.py`           | Pydantic request/response models, `Schema`, `ResultSet`                            | none         |
+| `errors.py`           | Domain exceptions (see §7)                                                         | none         |
+| `sources/base.py`     | `DataSource` protocol                                                              | none         |
+| `sources/csv.py`      | CSV → SQLite file, normalise columns, read-only engine                             | file on disk |
+| `sources/postgres.py` | Postgres engine, read-only transaction, label without password                     | engine       |
+| `sources/registry.py` | `source_id → DataSource`                                                           | in memory    |
+| `schema.py`           | Introspect, keyword table selector                                                 | none         |
+| `llm.py`              | `LLMClient` protocol, `OllamaClient` (httpx)                                       | none         |
+| `prompt.py`           | Build system prompt, chat turns, correction turn; extract SQL from the reply       | none         |
+| `validator.py`        | sqlglot parse → safety → schema check                                              | none         |
+| `executor.py`         | Enforce LIMIT on AST (max_rows + 1), run on the source's read-only engine, timeout | none         |
+| `charts.py`           | Result shape → chart spec                                                          | none         |
+| `pipeline.py`         | generate → validate → execute, retry on fixable errors                             | none         |
+| `history.py`          | SQLite log of queries                                                              | file on disk |
+| `api.py`              | FastAPI routes, error mapping, wiring                                              | app state    |
+| `ui.py`               | Streamlit rendering, Plotly figure from chart spec                                 | session      |
 
 KISS rule: plain functions where there is no state. Classes only for adapters and anything holding state.
 
@@ -72,15 +74,15 @@ class DataSource(Protocol):
     def engine(self) -> Engine: ...  # read-only engine
     def schema(self) -> Schema: ...  # cached
 
-def validate(sql: str, schema: Schema, dialect: str) -> ValidatedSQL: ...
+def validate(sql: str, schema: Schema, dialect: Dialect) -> ValidatedSQL: ...
     # raises SyntaxIssue | UnsafeSQL | SchemaIssue
 
-def run(source: DataSource, sql: ValidatedSQL, *, max_rows: int, timeout_s: int) -> ResultSet: ...
+def run(source: DataSource, query: ValidatedSQL, *, max_rows: int, timeout_s: float) -> ResultSet: ...
 
-def pick_chart(result: ResultSet) -> ChartSpec | None: ...
+def pick_chart(result: ResultSet) -> ChartSpec | None: ...  # X1-5, not built
 
 def answer(question: str, context: list[QA], source: DataSource,
-           llm: LLMClient, cfg: PipelineConfig) -> QueryResult: ...
+           llm: LLMClient, cfg: PipelineConfig) -> Answer: ...  # Answer(result: ResultSet, attempts: int)
 ``
 
 All sync. FastAPI endpoints are plain `def`, so they run in a threadpool. No async machinery.
@@ -92,32 +94,34 @@ All sync. FastAPI endpoints are plain `def`, so they run in a threadpool. No asy
 1. api: look up source_id → DataSource           (400 if unknown)
 2. pipeline: schema = source.schema()
 3. schema.select_tables(question, schema, k=5)
-4. prompt.build(dialect, subset, question, context[-3:])
-5. loop attempt = 1..(1 + MAX_RETRIES):
-     sql = llm.complete(...)                      (502 if Ollama down)
-     try validate(sql, schema, dialect)
+4. prompt.system_prompt(dialect, subset) + prompt.conversation(question, context[-3:])
+5. pipeline.answer, loop attempt = 1..(1 + MAX_RETRIES), validating against the subset:
+     sql = extract_sql(llm.complete(...))                      (502 if Ollama down)
+     try validate(...) then executor.run(...)
        UnsafeSQL   → stop, no retry               (422 unsafe_sql)
-       Syntax/Schema issue → prompt.correction(sql, err); continue
+       Syntax/Schema issue or QueryFailed → prompt.correction(err); continue
      break
    exhausted → 422 validation_failed + last_sql
-6. executor.run(source, validated, ...)           (504 on timeout)
-7. charts.pick_chart(result)
+6. (inside the loop) QueryTimeout is never retried           (504 on timeout)
+7. api: charts.pick_chart(answer.result)   (X1-5)
 8. history.log(...)                               (never stores credentials)
-9. return QueryResult
+9. api: return QueryResult = Answer + row_count + chart   (X1-5)
 ``
 
 ## 6. Safety model (defense in depth)
 
-| Layer | Mechanism                                                                     | Protects against           |
-| ----- | ----------------------------------------------------------------------------- | -------------------------- |
-| 1     | Prompt rules: single SELECT, exact columns                                    | Most bad output (soft)     |
-| 2     | Validator: AST root must be SELECT/CTE/UNION; write/DDL node anywhere → block | Model emits writes         |
-| 3     | Read-only connection: SQLite `mode=ro`, PG `default_transaction_read_only=on`        | Validator bug              |
-| 4     | LIMIT enforced on AST (default 500)                                           | Huge result sets           |
-| 5     | Statement timeout (default 15 s)                                              | Runaway queries            |
-| 6     | Schema-only prompts: no row data ever sent to the LLM                         | Prompt injection via cells |
+| Layer | Mechanism                                                                                                                                                                                       | Protects against           |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| 1     | Prompt rules: single SELECT, exact columns                                                                                                                                                      | Most bad output (soft)     |
+| 2     | Validator: AST root must be a query (SELECT/CTE/UNION); write, DDL, INTO, COPY, FOR UPDATE, PRAGMA or SET node anywhere → block; unparseable text starting with a write keyword is also blocked | Model emits writes         |
+| 3     | Read-only connection: SQLite `mode=ro`, PG `default_transaction_read_only=on`                                                                                                                   | Validator bug              |
+| 4     | LIMIT enforced on AST (default 500)                                                                                                                                                             | Huge result sets           |
+| 5     | Statement timeout (default 15 s)                                                                                                                                                                | Runaway queries            |
+| 6     | Schema-only prompts: no row data ever sent to the LLM                                                                                                                                           | Prompt injection via cells |
 
-Layers 2 and 3 are independent: either one alone stops a write.
+Layers 2 and 3 are independent: either one alone stops a write. Read-only is set up by each source's engine (`CsvSource`, `PostgresSource`); the executor only runs on it.
+
+The validator's schema check is best effort and not a safety layer. It checks against the selected tables only, rejects schema-qualified tables, and lets a query through when sqlglot cannot analyse it. The database then rejects real errors (see `QueryFailed` in section 7).
 
 ## 7. Errors → HTTP
 
@@ -128,6 +132,8 @@ Layers 2 and 3 are independent: either one alone stops a write.
 | `ValidationFailed` | 422  | `validation_failed` | after retries exhausted |
 | `LLMUnavailable`   | 502  | `llm_unavailable`   | no                      |
 | `QueryTimeout`     | 504  | `query_timeout`     | no                      |
+
+`QueryFailed` (the database rejects the query at run time) is retried like a validator issue and surfaces as `validation_failed` when retries run out. `UnsafeSQL` and `ValidationFailed` carry the offending SQL as `last_sql`. `LLMUnavailable` covers unreachable host, timeout, non-200 reply (for example a missing model) and malformed reply.
 
 Body shape: `{"code": "...", "message": "...", "last_sql": "..."?}`. No stack traces to the client.
 
@@ -144,9 +150,9 @@ Body shape: `{"code": "...", "message": "...", "last_sql": "..."?}`. No stack tr
 ## 9. CSV ingestion rules
 
 - One file, ≤ `MAX_UPLOAD_MB`.
-- Table name = filename stem, `snake_case`.
-- Columns normalised to `snake_case`, deduplicated with numeric suffix.
-- pandas dtype inference → SQLite types. Date-like columns kept as ISO text and flagged in schema for the chart picker.
+- Table name = filename stem, `snake_case` (`data_` prefix if it starts with a digit, `data` if empty).
+- Columns normalised to `snake_case` (`col_` prefix for a leading digit, `col` if empty), duplicates get `_2`, `_3`. The header row is read separately so pandas cannot rename duplicates first.
+- pandas dtype inference → SQLite types. Dates stay text as written in the CSV. The schema does not flag them: the chart picker (X1-5) detects date-like columns itself.
 
 ## 10. Chart picker rules
 
