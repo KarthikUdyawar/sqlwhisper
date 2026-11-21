@@ -37,6 +37,7 @@ Status values: **Accepted** · **Superseded by D-xx** · **Proposed**
 | D-27 | Read-only lives in the source engines                        | Accepted |
 | D-28 | LLM call: temperature 0, reply cleaning in `extract_sql`     | Accepted |
 | D-29 | Schema check is best effort, runs on the selected subset     | Accepted |
+| D-30 | Mermaid diagrams, owned by ARCHITECTURE.md                 | Accepted |
 
 ---
 
@@ -216,6 +217,13 @@ Status values: **Accepted** · **Superseded by D-xx** · **Proposed**
 **Decision:** The validator checks tables and columns against the selected subset using sqlglot `qualify`. If `qualify` fails for a reason other than an unknown name, the query passes to the database.
 **Why:** sqlglot cannot analyse every construct, and the safety layers do not depend on this check. Database errors feed D-25.
 **Cost:** Some hallucinated columns cost an extra database round trip. Revisit if the benchmark shows misses.
+
+## D-30 — Mermaid diagrams, owned by ARCHITECTURE.md
+
+**Date:** 2026-11-21 · **Status:** Accepted
+**Decision:** Diagrams are Mermaid fences in `docs/ARCHITECTURE.md`. Other docs link to them. Tables, code contracts and the generated `STRUCTURE.md` stay as they are.
+**Why:** GitHub renders Mermaid, no tooling needed, and one owner removes the duplicate pipeline picture the PRD had.
+**Cost:** Raw text is harder to read in a terminal. A syntax error shows as a broken box and nothing in CI catches it, so preview on GitHub or in VS Code before the PR.
 
 ## Template
 
