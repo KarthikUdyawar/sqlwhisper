@@ -25,7 +25,7 @@ def pick_chart(result: ResultSet) -> ChartSpec | None:
         return ChartSpec(type="line", x=by_kind["date"][0], y=numeric[0])
     if by_kind.get("category"):
         return ChartSpec(type="bar", x=by_kind["category"][0], y=numeric[0])
-    if len(kinds) == 2:  # both numeric
+    if len(numeric) == 2 and len(kinds) == 2:
         return ChartSpec(type="scatter", x=numeric[0], y=numeric[1])
     return None
 

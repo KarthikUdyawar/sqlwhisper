@@ -103,3 +103,8 @@ def test_mixed_strings_and_numbers_is_category() -> None:
 def test_year_only_strings_are_categories() -> None:
     rows = [["2023", 5], ["2024", 7]]
     assert pick_chart(result(["year", "n"], rows)) == ChartSpec(type="bar", x="year", y="n")
+
+
+def test_numeric_plus_all_null_column_is_none() -> None:
+    rows = [[1, None], [2, None]]
+    assert pick_chart(result(["total", "note"], rows)) is None
