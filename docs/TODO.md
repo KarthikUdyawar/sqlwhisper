@@ -118,21 +118,21 @@ Implement
 
 Tests first (`TestClient`, `FakeLLM`)
 
-- [ ] `GET /health`: Ollama up/down, model present/missing
-- [ ] `POST /sources/csv` happy path returns `source_id` + tables
-- [ ] `POST /sources/url` bad URL → 400
-- [ ] `GET /sources/{id}/schema`
-- [ ] `POST /query` happy path returns the `QueryResult` shape (incl. `chart`)
-- [ ] Each error maps to its HTTP code and body shape (400, 422 ×2, 502, 504)
-- [ ] History: logged on success and failure, capped at 20 on read, no password anywhere in the DB or response
+- [x] `GET /health`: Ollama up/down, model present/missing
+- [x] `POST /sources/csv` happy path returns `source_id` + tables
+- [x] `POST /sources/url` bad URL → 400
+- [x] `GET /sources/{id}/schema`
+- [x] `POST /query` happy path returns the `QueryResult` shape (incl. `chart`)
+- [x] Each error maps to its HTTP code and body shape (400, 422 ×2, 502, 504)
+- [x] History: logged on success and failure, capped at 20 on read, no password anywhere in the DB or response
 
 Implement
 
-- [ ] `api.py` (wiring, routes, exception handlers), `history.py`
-- [ ] `Makefile`: `api` target
-- [ ] Call `purge_uploads` on startup; build `QueryResult` from `Answer` + `row_count` + chart ([D-26](DECISION.md))
-- [ ] Chart picker detects date-like columns itself (the schema does not flag them)
-- [ ] `charts.py` here, because `/query` returns the chart spec. Tests first, one case per rule row in the architecture doc
+- [x] `api.py` (wiring, routes, exception handlers), `history.py`
+- [x] `Makefile`: `api` target
+- [x] Call `purge_uploads` on startup; build `QueryResult` from `Answer` + `row_count` + chart ([D-26](DECISION.md))
+- [x] Chart picker detects date-like columns itself (the schema does not flag them)
+- [x] `charts.py` here, because `/query` returns the chart spec. Tests first, one case per rule row in the architecture doc
 
 **Done when:** `make api`, then `curl` with a CSV and a question returns SQL + rows.
 
@@ -195,3 +195,7 @@ Multiple CSVs, MySQL, Excel, embeddings, explain-result, suggest-queries, auth, 
 
 - `CsvSource` never disposes its engine; matters once sources can be removed.
 - Validation runs against the selected table subset, so a model that uses a table outside it gets a retry. Intended? Check in the benchmark.
+- `history.log` failing after a good query turns the response into a 500. Decide best effort vs loud.
+- `api.query` logs `ok=False` with empty SQL for any unexpected exception, not only domain errors.
+- The `internal_error` handler logs nothing, so the cause of a 500 is invisible.
+- `pick_chart` raises IndexError on a numeric column plus an all-null column (fix in its own branch, test first).

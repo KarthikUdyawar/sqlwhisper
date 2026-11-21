@@ -65,7 +65,7 @@ UI holds no logic beyond rendering. Plotly figures are built in the UI from a ch
 }
 ```
 
-Errors: `400` bad source/upload · `422` validation failed after retries (returns `last_sql` + error) · `502` Ollama unreachable · `504` query timeout.
+Errors: `400` bad source/upload · `422` validation failed after retries (returns `last_sql` + error), `unsafe_sql`, or `bad_request` (invalid body) · `500` `internal_error` · `502` Ollama unreachable · `504` query timeout. Limits: question 1-2000 characters, context at most 10 pairs.
 
 ---
 
@@ -189,7 +189,7 @@ Removed from repo: `main.py`, `requirements.txt` (uv only). The `chat-db-plotly`
 ## Dependencies
 
 Runtime: `fastapi`, `uvicorn`, `python-multipart`, `httpx`, `sqlalchemy`, `psycopg[binary]`, `sqlglot`, `pandas`, `plotly`, `streamlit`, `pydantic-settings`.
-Dev: `pytest`, `ruff`, `mypy`, `pandas-stubs`.
+Dev: `pytest`, `ruff`, `mypy`, `pandas-stubs`, `httpx2` (Starlette `TestClient`, see D-32).
 
 No `requests`, no `ollama` SDK: `httpx` covers it.
 

@@ -2,7 +2,7 @@
 
 Version 0.2. Companion to `PRD.md`. Decisions and reasons live in `DECISION.md`.
 
-Describes the code as built through X1-4. Items marked _(X1-n)_ are not built yet.
+Describes the code as built through X1-5. Items marked _(X1-n)_ are not built yet.
 
 ---
 
@@ -53,7 +53,7 @@ flowchart TD
 | `sources/postgres.py` | Postgres engine, read-only transaction, label without password                     | engine       |
 | `sources/registry.py` | `source_id → DataSource`                                                           | in memory    |
 | `schema.py`           | Introspect, keyword table selector                                                 | none         |
-| `llm.py`              | `LLMClient` protocol, `OllamaClient` (httpx)                                       | none         |
+| `llm.py`              | `LLMClient` protocol, `OllamaClient` (httpx, `health()`)                                       | none         |
 | `prompt.py`           | Build system prompt, chat turns, correction turn; extract SQL from the reply       | none         |
 | `validator.py`        | sqlglot parse → safety → schema check                                              | none         |
 | `executor.py`         | Enforce LIMIT on AST (max_rows + 1), run on the source's read-only engine, timeout | none         |
@@ -91,7 +91,7 @@ def run(
 ) -> ResultSet: ...
 
 
-def pick_chart(result: ResultSet) -> ChartSpec | None: ...  # X1-5, not built
+def pick_chart(result: ResultSet) -> ChartSpec | None: ...
 
 
 def answer(
@@ -122,7 +122,7 @@ flowchart TD
     I --> J["api: pick_chart, history.log, build QueryResult"]
 ```
 
-Attempts: `1 + MAX_RETRIES`. Validation runs against the selected table subset. Chart, history and `QueryResult` are built in `api.py` _(X1-5)_. History never stores credentials.
+Attempts: `1 + MAX_RETRIES`. Validation runs against the selected table subset. Chart, history and `QueryResult` are built in `api.py`. History logs question, SQL, row count and source label, also with `ok=false` when the pipeline raises. It never stores credentials. The executor makes values JSON-safe (`plain_value`): Decimal to int/float, NaN/inf to null, bytes to a placeholder.
 
 ## 6. Safety model (defense in depth)
 
@@ -148,8 +148,13 @@ The validator's schema check is best effort and not a safety layer. It checks ag
 | `ValidationFailed` | 422  | `validation_failed` | after retries exhausted |
 | `LLMUnavailable`   | 502  | `llm_unavailable`   | no                      |
 | `QueryTimeout`     | 504  | `query_timeout`     | no                      |
+| `SQLAlchemyError`  | 400  | `bad_source`        | no                      |
+| invalid body       | 422  | `bad_request`       | no                      |
+| anything else      | 500  | `internal_error`    | no                      |
 
 `QueryFailed` (the database rejects the query at run time) is retried like a validator issue and surfaces as `validation_failed` when retries run out. `UnsafeSQL` and `ValidationFailed` carry the offending SQL as `last_sql`. `LLMUnavailable` covers unreachable host, timeout, non-200 reply (for example a missing model) and malformed reply.
+
+The executor raises `SourceError` when the database goes away mid-query (psycopg `OperationalError` without a SQLSTATE). A stray `SQLAlchemyError` returns a fixed message, since driver text can carry host details. Request bodies are limited: question 1-2000 characters, at most 10 context pairs. The `bad_request` body never echoes the input.
 
 Body shape: `{"code": "...", "message": "...", "last_sql": "..."?}`. No stack traces to the client.
 
@@ -160,7 +165,7 @@ Body shape: `{"code": "...", "message": "...", "last_sql": "..."?}`. No stack tr
 | Uploaded CSV    | `DATA_DIR/uploads/{source_id}.db` | Purged on API startup            |
 | Source registry | In memory                         | Process (restart → re-upload)    |
 | Postgres URL    | In memory, inside the engine only | Process. Never logged or stored  |
-| History         | `DATA_DIR/history.db` (SQLite)    | Persistent, last 20 read via API |
+| History         | `DATA_DIR/history.db` (SQLite, includes question text and SQL)    | Persistent, last 20 read via API |
 | Chat/session    | Streamlit `session_state`         | Browser session                  |
 
 ## 9. CSV ingestion rules
@@ -168,7 +173,7 @@ Body shape: `{"code": "...", "message": "...", "last_sql": "..."?}`. No stack tr
 - One file, ≤ `MAX_UPLOAD_MB`.
 - Table name = filename stem, `snake_case` (`data_` prefix if it starts with a digit, `data` if empty).
 - Columns normalised to `snake_case` (`col_` prefix for a leading digit, `col` if empty), duplicates get `_2`, `_3`. The header row is read separately so pandas cannot rename duplicates first.
-- pandas dtype inference → SQLite types. Dates stay text as written in the CSV. The schema does not flag them: the chart picker (X1-5) detects date-like columns itself.
+- pandas dtype inference → SQLite types. Dates stay text as written in the CSV. The schema does not flag them: the chart picker detects date-like columns itself.
 
 ## 10. Chart picker rules
 
@@ -180,13 +185,13 @@ Body shape: `{"code": "...", "message": "...", "last_sql": "..."?}`. No stack tr
 | two numeric columns         | scatter |
 | otherwise                   | none    |
 
-API returns a `ChartSpec {type, x, y, color?}`. The UI turns it into a Plotly figure. The API has no Plotly dependency.
+API returns a `ChartSpec {type, x, y}`. The UI turns it into a Plotly figure. The API has no Plotly dependency.
 
 ## 11. Deployment
 
 ```bash
 docker-compose.yml
-  api: uv run uvicorn sqlwhisper.api:app --host 0.0.0.0 --port 8000
+  api: uv run uvicorn sqlwhisper.api:create_app --factory --host 0.0.0.0 --port 8000
   ui:  uv run streamlit run src/sqlwhisper/ui.py   (API_URL=http://api:8000)
   ollama: external → OLLAMA_URL (e.g. host.docker.internal:11434 or LAN IP)
 ```

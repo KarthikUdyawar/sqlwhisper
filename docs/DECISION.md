@@ -38,6 +38,8 @@ Status values: **Accepted** · **Superseded by D-xx** · **Proposed**
 | D-28 | LLM call: temperature 0, reply cleaning in `extract_sql`     | Accepted |
 | D-29 | Schema check is best effort, runs on the selected subset     | Accepted |
 | D-30 | Mermaid diagrams, owned by ARCHITECTURE.md                 | Accepted |
+| D-31 | Executor makes values JSON-safe, maps lost connection to 400 | Accepted |
+| D-32 | `httpx2` as dev dependency for Starlette `TestClient`        | Accepted |
 
 ---
 
@@ -224,6 +226,20 @@ Status values: **Accepted** · **Superseded by D-xx** · **Proposed**
 **Decision:** Diagrams are Mermaid fences in `docs/ARCHITECTURE.md`. Other docs link to them. Tables, code contracts and the generated `STRUCTURE.md` stay as they are.
 **Why:** GitHub renders Mermaid, no tooling needed, and one owner removes the duplicate pipeline picture the PRD had.
 **Cost:** Raw text is harder to read in a terminal. A syntax error shows as a broken box and nothing in CI catches it, so preview on GitHub or in VS Code before the PR.
+
+## D-31 — Executor output is JSON-safe; lost connection is a source error
+
+**Date:** 2026-11-21 · **Status:** Accepted
+**Decision:** `executor.plain_value` converts Decimal to int/float, NaN/inf to null and bytes to a placeholder before rows leave the executor. A psycopg `OperationalError` without a SQLSTATE becomes `SourceError` (400), not `QueryFailed`.
+**Why:** JSON responses must not fail on database types. A dead connection is not something the model can fix, so it must not burn retries.
+**Cost:** Decimal precision beyond float range is lost in the response.
+
+## D-32 — `httpx2` as dev dependency
+
+**Date:** 2026-11-21 · **Status:** Accepted
+**Decision:** Add `httpx2` to the dev group. Runtime keeps `httpx` for the Ollama client (D-13).
+**Why:** Starlette's `TestClient` deprecates `httpx` in favour of `httpx2` and warns on every test run. Tests use `TestClient`, so the dependency is real even though no file imports it.
+**Cost:** Two HTTP libraries in the lockfile. Revisit when Starlette drops `httpx` support or the runtime client can move.
 
 ## Template
 
