@@ -15,19 +15,19 @@ Order is strict: each ticket depends on the one before.
 
 Tests first
 
-- [ ] Settings load defaults when env is empty
-- [ ] Env vars override defaults (`OLLAMA_MODEL`, `MAX_ROWS`, …)
-- [ ] Invalid value (`MAX_ROWS=abc`) raises a validation error
+- [x] Settings load defaults when env is empty
+- [x] Env vars override defaults (`OLLAMA_MODEL`, `MAX_ROWS`, …)
+- [x] Invalid value (`MAX_ROWS=abc`) raises a validation error
 
 Implement
 
-- [ ] `git rm main.py requirements.txt`
-- [ ] `pyproject.toml`: name `sqlwhisper`, `uv_build` backend, deps from PRD, dev group (`pytest`, `ruff`, `mypy`)
-- [ ] `src/sqlwhisper/` package, `settings.py` (pydantic-settings, env only), `errors.py`, `models.py` stubs
-- [ ] `.env.example` with every var documented
-- [ ] `Makefile`: `check` (ruff, mypy --strict, pytest), `api`, `ui`, `test`, `tags`
-- [ ] `ruff` + `mypy` strict config in `pyproject.toml`
-- [ ] README stub: install + run
+- [x] `git rm main.py requirements.txt`
+- [x] `pyproject.toml`: name `sqlwhisper`, `uv_build` backend, deps from PRD, dev group (`pytest`, `ruff`, `mypy`)
+- [x] `src/sqlwhisper/` package, `settings.py` (pydantic-settings, env only), `errors.py`, `models.py` stubs
+- [x] `.env.example` with every var documented
+- [x] `Makefile`: `check` (ruff, mypy --strict, pytest), `test`, `tags`, `smoke` (`api` in X1-5, `ui` in X1-6)
+- [x] `ruff` + `mypy` strict config in `pyproject.toml`
+- [x] README stub: install + run
 
 **Done when:** `uv sync && make check` is green on a clean clone.
 
@@ -39,20 +39,20 @@ Implement
 
 Tests first
 
-- [ ] CSV: loads, table name from filename, headers normalised (`"Order Date"` → `order_date`), duplicate headers deduped
-- [ ] CSV: over `MAX_UPLOAD_MB` rejected, non-CSV rejected, empty file rejected
-- [ ] CSV source engine is read-only (a write raises)
-- [ ] Postgres: label is `host/db` and never contains the password
-- [ ] Postgres: non-`postgresql://` URL (incl. `sqlite:///`) rejected
-- [ ] Registry: add, get, unknown id raises `SourceError`
-- [ ] Schema: tables, columns, types, PK/FK introspected from a built-in-test SQLite DB
-- [ ] Selector: ≤5 tables returns all; >5 ranks by keyword hits on table and column names, caps at 5
+- [x] CSV: loads, table name from filename, headers normalised (`"Order Date"` → `order_date`), duplicate headers deduped
+- [x] CSV: over `MAX_UPLOAD_MB` rejected, non-CSV rejected, empty file rejected
+- [x] CSV source engine is read-only (a write raises)
+- [x] Postgres: label is `host/db` and never contains the password
+- [x] Postgres: non-`postgresql://` URL (incl. `sqlite:///`) rejected
+- [x] Registry: add, get, unknown id raises `SourceError`
+- [x] Schema: tables, columns, types, PK/FK introspected from a built-in-test SQLite DB
+- [x] Selector: ≤5 tables returns all; >5 ranks by keyword hits on table and column names, caps at 5
 
 Implement
 
-- [ ] `sources/base.py` (`DataSource` protocol), `csv.py`, `postgres.py`, `registry.py`
-- [ ] `schema.py`: `introspect()`, `select_tables()`
-- [ ] Purge `DATA_DIR/uploads` on startup helper
+- [x] `sources/base.py` (`DataSource` protocol), `csv.py`, `postgres.py`, `registry.py`
+- [x] `schema.py`: `introspect()`, `select_tables()`
+- [x] Purge `DATA_DIR/uploads` on startup helper
 
 **Done when:** all tests green, no network needed (Postgres tests use URL parsing only).
 
@@ -64,25 +64,25 @@ Implement
 
 Tests first (validator)
 
-- [ ] Valid SELECT, CTE, UNION pass
-- [ ] Syntax error → `SyntaxIssue` with readable message
-- [ ] Unknown table / unknown column → `SchemaIssue` naming the closest valid name
-- [ ] `INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `TRUNCATE`, `GRANT` → `UnsafeSQL`
-- [ ] Write node hidden in a CTE or subquery → `UnsafeSQL`
-- [ ] Two statements (`SELECT 1; DROP TABLE x`) → `UnsafeSQL`
-- [ ] Column named `update_date` passes (no keyword false positive)
-- [ ] Dialect respected (sqlite vs postgres quirks, one case each)
+- [x] Valid SELECT, CTE, UNION pass
+- [x] Syntax error → `SyntaxIssue` with readable message
+- [x] Unknown table / unknown column → `SchemaIssue` naming the closest valid name
+- [x] `INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `TRUNCATE`, `GRANT` → `UnsafeSQL`
+- [x] Write node hidden in a CTE or subquery → `UnsafeSQL`
+- [x] Two statements (`SELECT 1; DROP TABLE x`) → `UnsafeSQL`
+- [x] Column named `update_date` passes (no keyword false positive)
+- [x] Dialect respected (sqlite vs postgres quirks, one case each)
 
 Tests first (executor)
 
-- [ ] LIMIT added when missing; lowered when above `MAX_ROWS`; kept when lower
-- [ ] `truncated` flag set when the row cap was hit
-- [ ] Write attempt on the read-only engine fails even when the validator is bypassed
-- [ ] Timeout raises `QueryTimeout`
+- [x] LIMIT added when missing; lowered when above `MAX_ROWS`; kept when lower
+- [x] `truncated` flag set when the row cap was hit
+- [x] Write attempt on the read-only engine fails even when the validator is bypassed
+- [x] Timeout raises `QueryTimeout`
 
 Implement
 
-- [ ] `validator.py` (pure functions), `executor.py`, `ResultSet` model
+- [x] `validator.py` (pure functions), `executor.py`, `ResultSet` model
 
 **Done when:** validator blocks 100% of non-SELECT cases in the suite; no LLM involved yet.
 
@@ -94,19 +94,19 @@ Implement
 
 Tests first
 
-- [ ] `OllamaClient`: success, connection refused → `LLMUnavailable`, timeout → `LLMUnavailable` (httpx mock transport)
-- [ ] Prompt contains dialect, selected tables only, rules, last 3 context pairs (older ones dropped)
-- [ ] Prompt never contains row data
-- [ ] SQL extraction strips code fences and prose
-- [ ] Pipeline with `FakeLLM`: valid on first try → 1 attempt
-- [ ] Pipeline: bad column then fixed → 2 attempts, correction prompt includes error text
-- [ ] Pipeline: still invalid after `MAX_RETRIES` → `ValidationFailed` with last SQL
-- [ ] Pipeline: `UnsafeSQL` → stops immediately, no retry
+- [x] `OllamaClient`: success, connection refused → `LLMUnavailable`, timeout → `LLMUnavailable` (httpx mock transport)
+- [x] Prompt contains dialect, selected tables only, rules, last 3 context pairs (older ones dropped)
+- [x] Prompt never contains row data
+- [x] SQL extraction strips code fences and prose
+- [x] Pipeline with `FakeLLM`: valid on first try → 1 attempt
+- [x] Pipeline: bad column then fixed → 2 attempts, correction prompt includes error text
+- [x] Pipeline: still invalid after `MAX_RETRIES` → `ValidationFailed` with last SQL
+- [x] Pipeline: `UnsafeSQL` → stops immediately, no retry
 
 Implement
 
-- [ ] `llm.py`, `prompt.py`, `pipeline.py`
-- [ ] Opt-in smoke test `pytest -m ollama` (one real question)
+- [x] `llm.py`, `prompt.py`, `pipeline.py`
+- [x] Opt-in smoke test `pytest -m ollama` (one real question)
 
 **Done when:** pipeline tests green with `FakeLLM`; smoke test passes against local Ollama (`make tags` shows the model).
 
@@ -129,6 +129,9 @@ Tests first (`TestClient`, `FakeLLM`)
 Implement
 
 - [ ] `api.py` (wiring, routes, exception handlers), `history.py`
+- [ ] `Makefile`: `api` target
+- [ ] Call `purge_uploads` on startup; build `QueryResult` from `Answer` + `row_count` + chart ([D-26](DECISION.md))
+- [ ] Chart picker detects date-like columns itself (the schema does not flag them)
 - [ ] `charts.py` here, because `/query` returns the chart spec. Tests first, one case per rule row in the architecture doc
 
 **Done when:** `make api`, then `curl` with a CSV and a question returns SQL + rows.
@@ -147,6 +150,7 @@ Tests first
 
 Implement
 
+- [ ] `Makefile`: `ui` target
 - [ ] Sidebar: CSV uploader, DB URL input (password-masked), Ollama status, schema explorer, last-20 history (click to re-run)
 - [ ] Main: chat input, collapsible SQL, `st.dataframe`, chart, CSV download
 - [ ] Inline error states: Ollama down, bad source, validation exhausted (shows last SQL), unsafe, timeout
@@ -189,4 +193,5 @@ Multiple CSVs, MySQL, Excel, embeddings, explain-result, suggest-queries, auth, 
 
 ## Parking lot
 
-_(add items here instead of widening scope)_
+- `CsvSource` never disposes its engine; matters once sources can be removed.
+- Validation runs against the selected table subset, so a model that uses a table outside it gets a retry. Intended? Check in the benchmark.

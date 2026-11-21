@@ -66,7 +66,7 @@ UI holds no logic beyond rendering. Plotly figures are built in the UI from a ch
 | POST   | `/query`               | `{source_id, question, context[]}` → `QueryResult` |
 | GET    | `/history`             | Last 20 queries                                    |
 
-`QueryResult`:
+`QueryResult` (built in the API layer from the pipeline's `Answer`: `ResultSet` + `attempts`, plus `row_count` and `chart`):
 
 ```json
 {
@@ -102,24 +102,25 @@ Errors: `400` bad source/upload · `422` validation failed after retries (return
 
 - System prompt: dialect, schema subset, rules (single SELECT, alias tables, exact column names, no explanation, no fences).
 - Context: last 3 Q/SQL pairs for follow-ups.
-- Correction prompt: previous SQL + validator error.
+- Correction prompt: the error text (validator or database), sent after the model's previous SQL as chat turns.
+- Reply parsing: strip `<think>` blocks, code fences and surrounding prose before validation.
 
 ### F4 — Validator (pure functions, sqlglot)
 
 1. **Parse** with target dialect. Exactly one statement.
-2. **Safety (AST):** root must be `SELECT` (CTEs and UNION allowed). Any write or DDL node anywhere in the tree → hard block, no retry.
-3. **Schema:** every table and column ref must exist in the schema. Error names the closest valid column.
+2. **Safety (AST):** root must be `SELECT` (CTEs and UNION allowed). Any write or DDL node anywhere in the tree → hard block, no retry. Also blocked: `INTO`, `COPY`, `FOR UPDATE`, `PRAGMA`, `SET`. Unparseable text that starts with a write keyword is blocked, not retried.
+3. **Schema:** every table and column ref must exist in the selected schema. Schema-qualified tables (`public.t`) are rejected. Error names the closest valid column. Best effort: constructs sqlglot cannot analyse pass through to the database.
 
-Parse and schema errors → correction prompt. Max 2 retries (3 attempts total), then `422`.
+Parse, schema and database run-time errors → correction prompt. Max 2 retries (3 attempts total), then `422`. Timeouts are never retried.
 
 ### F5 — Executor
 
 Defense in depth. All four apply to every source:
 
 1. Validator (F4)
-2. Read-only connection: SQLite `mode=ro`; Postgres `default_transaction_read_only=on`
-3. Hard `LIMIT` (default 500) applied to the AST if missing or larger
-4. Statement timeout (default 15 s)
+2. Read-only connection, set up by each source's engine: SQLite `mode=ro`; Postgres `default_transaction_read_only=on`
+3. Hard `LIMIT` (default 500) applied to the AST: a literal LIMIT within the cap is kept, anything else is replaced. The query runs with cap + 1 rows so `truncated` can be detected
+4. Statement timeout (default 15 s): SQLite progress handler, Postgres `statement_timeout`
 
 ### F6 — Chart picker (deterministic)
 
@@ -159,6 +160,7 @@ sqlwhisper/
 ├── src/sqlwhisper/
 │   ├── settings.py      # pydantic-settings, env only
 │   ├── models.py        # request/response schemas
+│   ├── errors.py        # domain exceptions
 │   ├── sources/
 │   │   ├── base.py      # DataSource protocol
 │   │   ├── csv.py
@@ -176,6 +178,7 @@ sqlwhisper/
 │   └── ui.py            # Streamlit app
 ├── tests/
 ├── docs/
+├── CLAUDE.md
 ├── Dockerfile
 ├── docker-compose.yml
 ├── .env.example
@@ -202,7 +205,7 @@ Removed from repo: `main.py`, `requirements.txt` (uv only). The `chat-db-plotly`
 ## Dependencies
 
 Runtime: `fastapi`, `uvicorn`, `python-multipart`, `httpx`, `sqlalchemy`, `psycopg[binary]`, `sqlglot`, `pandas`, `plotly`, `streamlit`, `pydantic-settings`.
-Dev: `pytest`, `ruff`, `mypy`.
+Dev: `pytest`, `ruff`, `mypy`, `pandas-stubs`.
 
 No `requests`, no `ollama` SDK: `httpx` covers it.
 
