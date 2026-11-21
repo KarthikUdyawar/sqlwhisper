@@ -285,3 +285,21 @@ def test_no_credentials_in_history_responses_or_logs(
     assert password not in caplog.text
     assert history.json()[0]["source_label"] == "127.0.0.1/shop"
     assert history.json()[0]["ok"] is False
+
+
+def test_internal_error_logs_type_and_path_never_the_message(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    client = make_client(
+        tmp_path, FakeLLM(RuntimeError("secret internals")), raise_server_exceptions=False
+    )
+    source_id = upload(client)
+    with caplog.at_level(logging.ERROR, logger="sqlwhisper.api"):
+        response = ask(client, source_id, "my private question")
+    assert response.status_code == 500
+    logged = " ".join(r.getMessage() for r in caplog.records if r.name == "sqlwhisper.api")
+    assert "RuntimeError" in logged
+    assert "/query" in logged
+    assert "secret internals" not in logged
+    assert "my private question" not in logged
+    assert all(r.exc_info is None for r in caplog.records)  # a traceback would carry the message

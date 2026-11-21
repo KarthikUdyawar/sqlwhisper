@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 
@@ -31,6 +32,8 @@ from sqlwhisper.sources.base import DataSource
 from sqlwhisper.sources.csv import CsvSource, purge_uploads
 from sqlwhisper.sources.postgres import PostgresSource
 from sqlwhisper.sources.registry import SourceRegistry
+
+logger = logging.getLogger(__name__)
 
 # exception -> (HTTP status, error code). Bodies never carry stack traces.
 _ERRORS: dict[type[Exception], tuple[int, str]] = {
@@ -158,6 +161,8 @@ def _register_error_handlers(app: FastAPI) -> None:
         return _body(422, "bad_request", problems)
 
     def internal(request: Request, exc: Exception) -> JSONResponse:
+        # Type and path only: the message or traceback can carry SQL or question text.
+        logger.error("unhandled %s on %s", type(exc).__name__, request.url.path)
         return _body(500, "internal_error", "unexpected error")
 
     app.add_exception_handler(RequestValidationError, bad_request)
