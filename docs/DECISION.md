@@ -42,6 +42,7 @@ Status values: **Accepted** · **Superseded by D-xx** · **Proposed**
 | D-32 | `httpx2` as dev dependency for Starlette `TestClient`        | Accepted |
 | D-33 | History is best effort; a failed log never changes the response | Accepted |
 | D-34 | Internal errors log exception type and path only              | Accepted |
+| D-35 | mypy skips missing stubs for `plotly`                        | Accepted |
 
 ---
 
@@ -256,6 +257,13 @@ Status values: **Accepted** · **Superseded by D-xx** · **Proposed**
 **Decision:** The 500 handler logs `unhandled <ExceptionType> on <path>` through `sqlwhisper.api`, with no message and no traceback. The client still gets `{"code": "internal_error", "message": "unexpected error"}`.
 **Why:** Exception text can carry SQL, question text or driver details (privacy principle). The type and path are enough to find the code path.
 **Cost:** Starlette re-raises after the handler, so uvicorn prints its own traceback in the server log. Left alone on purpose: it is local-only and needed for debugging.
+
+## D-35 — mypy skips missing stubs for plotly
+
+**Date:** 2026-11-22 · **Status:** Accepted
+**Decision:** Add a `[[tool.mypy.overrides]]` with `ignore_missing_imports = true` for `plotly` and `plotly.*`. `strict` stays on everywhere else.
+**Why:** Plotly ships no `py.typed` marker and no official stubs, so `mypy --strict` rejects the import. Only `ui.py` uses it (D-10). No new dependency.
+**Cost:** Plotly objects are `Any` to mypy, so wrong plotly calls are not caught statically. `tests/test_ui.py` covers the figure helper.
 
 ## Template
 

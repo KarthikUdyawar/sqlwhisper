@@ -2,7 +2,7 @@
 
 Version 0.2. Companion to `PRD.md`. Decisions and reasons live in `DECISION.md`.
 
-Describes the code as built through X1-5. Items marked _(X1-n)_ are not built yet.
+Describes the code as built through X1-6. Items marked _(X1-n)_ are not built yet.
 
 ---
 

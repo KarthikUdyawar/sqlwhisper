@@ -144,17 +144,17 @@ Implement
 
 Tests first
 
-- [ ] Pure helper: chart spec → Plotly figure (bar, line, scatter, none)
-- [ ] Pure helper: build `context[]` from the last 3 chat turns
-- [ ] Pure helper: map API error body → user-facing message
+- [x] Pure helper: chart spec → Plotly figure (bar, line, scatter, none)
+- [x] Pure helper: build `context[]` from the last 3 chat turns
+- [x] Pure helper: map API error body → user-facing message
 
 Implement
 
-- [ ] `Makefile`: `ui` target
-- [ ] Sidebar: CSV uploader, DB URL input (password-masked), Ollama status, schema explorer, last-20 history (click to re-run)
-- [ ] Main: chat input, collapsible SQL, `st.dataframe`, chart, CSV download
-- [ ] Inline error states: Ollama down, bad source, validation exhausted (shows last SQL), unsafe, timeout
-- [ ] Spinner + elapsed time
+- [x] `Makefile`: `ui` target
+- [x] Sidebar: CSV uploader, DB URL input (password-masked), Ollama status, schema explorer, last-20 history (click to re-run)
+- [x] Main: chat input, collapsible SQL, `st.dataframe`, chart, CSV download
+- [x] Inline error states: Ollama down, bad source, validation exhausted (shows last SQL), unsafe, timeout
+- [x] Spinner + elapsed time
 
 **Done when:** manual run-through of 5 questions on a sample CSV, including one follow-up ("now only North").
 
