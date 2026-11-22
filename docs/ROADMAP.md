@@ -1,6 +1,6 @@
 # SQLWhisper — Roadmap
 
-Status: **pre-MVP**. Sprint X1 in progress (see `TODO.md`). X1-1 to X1-5 merged; X1-6 (Streamlit UI) is next.
+Status: **pre-MVP**. Sprint X1 in progress (see `TODO.md`). X1-1 to X1-6 merged; X1-7 (Docker, benchmark, README) is next.
 
 Rule: nothing enters a sprint until the previous sprint's exit criteria are met. Anything speculative lives in "Later".
 
