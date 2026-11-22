@@ -1,4 +1,5 @@
 import logging
+import sqlite3
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 
@@ -107,10 +108,12 @@ def create_app(
             out = answer(body.question, body.context, source, llm, pipeline_cfg)
         except Exception as e:
             sql = getattr(e, "last_sql", None) or getattr(e, "sql", None) or ""
-            history.log(body.question, sql, 0, source.label, ok=False)
+            _log_best_effort(history, body.question, sql, 0, source.label, ok=False)
             raise
         result = out.result
-        history.log(body.question, result.sql, len(result.rows), source.label, ok=True)
+        _log_best_effort(
+            history, body.question, result.sql, len(result.rows), source.label, ok=True
+        )
         return QueryResult(
             sql=result.sql,
             columns=result.columns,
@@ -128,6 +131,16 @@ def create_app(
 
     _register_error_handlers(app)
     return app
+
+
+def _log_best_effort(
+    history: HistoryStore, question: str, sql: str, rows: int, label: str, *, ok: bool
+) -> None:
+    """History is an audit trail: a failed write must never change the answer (D-33)."""
+    try:
+        history.log(question, sql, rows, label, ok=ok)
+    except sqlite3.Error as e:
+        logger.warning("history log failed: %s", type(e).__name__)  # type only, no message
 
 
 def _body(status: int, code: str, message: str, last_sql: str | None = None) -> JSONResponse:

@@ -1,4 +1,5 @@
 import logging
+import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -8,6 +9,7 @@ from fastapi.testclient import TestClient
 from fakes import FakeLLM
 from sqlwhisper.api import create_app
 from sqlwhisper.errors import LLMUnavailable
+from sqlwhisper.history import HistoryStore
 from sqlwhisper.models import Health
 from sqlwhisper.settings import Settings
 from sqlwhisper.sources.postgres import PostgresSource, parse_postgres_url
@@ -303,3 +305,34 @@ def test_internal_error_logs_type_and_path_never_the_message(
     assert "secret internals" not in logged
     assert "my private question" not in logged
     assert all(r.exc_info is None for r in caplog.records)  # a traceback would carry the message
+
+
+# ---- history is best effort (D-33) ------------------------------------------------------
+
+
+def failing_log(*args: object, **kwargs: object) -> None:
+    raise sqlite3.OperationalError("disk full secret-detail")
+
+
+def test_history_failure_keeps_the_result_and_logs_type_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setattr(HistoryStore, "log", failing_log)
+    client = make_client(tmp_path)
+    source_id = upload(client)
+    with caplog.at_level(logging.WARNING, logger="sqlwhisper.api"):
+        response = ask(client, source_id)
+    assert response.status_code == 200
+    assert response.json()["sql"] == GOOD
+    assert "OperationalError" in caplog.text
+    assert "secret-detail" not in caplog.text
+
+
+def test_history_failure_does_not_replace_the_pipeline_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(HistoryStore, "log", failing_log)
+    client = make_client(tmp_path, FakeLLM("DELETE FROM sales"))
+    response = ask(client, upload(client))
+    assert response.status_code == 422
+    assert response.json()["code"] == "unsafe_sql"
