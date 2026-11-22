@@ -6,42 +6,43 @@ Status values: **Accepted** · **Superseded by D-xx** · **Proposed**
 
 ## Index
 
-| ID   | Decision                                                     | Status   |
-| ---- | ------------------------------------------------------------ | -------- |
-| D-01 | FastAPI backend + Streamlit UI                               | Accepted |
-| D-02 | Single Python package, `src/` layout, uv only                | Accepted |
-| D-03 | Sources: single CSV + Postgres URL                           | Accepted |
-| D-04 | Postgres URLs only, no `sqlite://` URLs                      | Accepted |
-| D-05 | CSV → SQLite file via pandas                                 | Accepted |
-| D-06 | AST-based safety check, not a keyword blocklist              | Accepted |
-| D-07 | Read-only enforced at executor, independent of validator     | Accepted |
-| D-08 | LIMIT enforced on the AST by the executor                    | Accepted |
-| D-09 | Deterministic chart rules, not LLM chart JSON                | Accepted |
-| D-10 | Chart spec from API, Plotly built in UI                      | Accepted |
-| D-11 | Env-only configuration, no `config.yaml`                     | Accepted |
-| D-12 | Sync code everywhere                                         | Accepted |
-| D-13 | `httpx` for Ollama, no SDK, no `requests`                    | Accepted |
-| D-14 | Default model `qwen2.5:7b-instruct`, final pick by benchmark | Proposed |
-| D-15 | Keyword table selector now, embeddings later                 | Accepted |
-| D-16 | Follow-ups via client-sent last 3 Q/SQL pairs                | Accepted |
-| D-17 | Source registry in memory; credentials never persisted       | Accepted |
-| D-18 | No seed database; tests build their own data                 | Accepted |
-| D-19 | Single-stage Dockerfile, Ollama external                     | Accepted |
-| D-20 | Feature branches off `master`, no `develop`                  | Accepted |
-| D-21 | Sprint ID `X1`, tickets `X1-n`                               | Accepted |
-| D-22 | Retry budget: 2 retries (3 attempts)                         | Accepted |
-| D-23 | Experiment (`chat-db-plotly`) retired                        | Accepted |
-| D-24 | Flat docs, generated STRUCTURE.md, CLAUDE.md                 | Accepted |
-| D-25 | Database run-time errors are retried like validator issues   | Accepted |
-| D-26 | Pipeline returns `Answer`; API builds `QueryResult` + chart  | Accepted |
-| D-27 | Read-only lives in the source engines                        | Accepted |
-| D-28 | LLM call: temperature 0, reply cleaning in `extract_sql`     | Accepted |
-| D-29 | Schema check is best effort, runs on the selected subset     | Accepted |
-| D-30 | Mermaid diagrams, owned by ARCHITECTURE.md                 | Accepted |
-| D-31 | Executor makes values JSON-safe, maps lost connection to 400 | Accepted |
-| D-32 | `httpx2` as dev dependency for Starlette `TestClient`        | Accepted |
+| ID   | Decision                                                        | Status   |
+| ---- | --------------------------------------------------------------- | -------- |
+| D-01 | FastAPI backend + Streamlit UI                                  | Accepted |
+| D-02 | Single Python package, `src/` layout, uv only                   | Accepted |
+| D-03 | Sources: single CSV + Postgres URL                              | Accepted |
+| D-04 | Postgres URLs only, no `sqlite://` URLs                         | Accepted |
+| D-05 | CSV → SQLite file via pandas                                    | Accepted |
+| D-06 | AST-based safety check, not a keyword blocklist                 | Accepted |
+| D-07 | Read-only enforced at executor, independent of validator        | Accepted |
+| D-08 | LIMIT enforced on the AST by the executor                       | Accepted |
+| D-09 | Deterministic chart rules, not LLM chart JSON                   | Accepted |
+| D-10 | Chart spec from API, Plotly built in UI                         | Accepted |
+| D-11 | Env-only configuration, no `config.yaml`                        | Accepted |
+| D-12 | Sync code everywhere                                            | Accepted |
+| D-13 | `httpx` for Ollama, no SDK, no `requests`                       | Accepted |
+| D-14 | Default model `qwen2.5:7b-instruct`, final pick by benchmark    | Proposed |
+| D-15 | Keyword table selector now, embeddings later                    | Accepted |
+| D-16 | Follow-ups via client-sent last 3 Q/SQL pairs                   | Accepted |
+| D-17 | Source registry in memory; credentials never persisted          | Accepted |
+| D-18 | No seed database; tests build their own data                    | Accepted |
+| D-19 | Single-stage Dockerfile, Ollama external                        | Accepted |
+| D-20 | Feature branches off `master`, no `develop`                     | Accepted |
+| D-21 | Sprint ID `X1`, tickets `X1-n`                                  | Accepted |
+| D-22 | Retry budget: 2 retries (3 attempts)                            | Accepted |
+| D-23 | Experiment (`chat-db-plotly`) retired                           | Accepted |
+| D-24 | Flat docs, generated STRUCTURE.md, CLAUDE.md                    | Accepted |
+| D-25 | Database run-time errors are retried like validator issues      | Accepted |
+| D-26 | Pipeline returns `Answer`; API builds `QueryResult` + chart     | Accepted |
+| D-27 | Read-only lives in the source engines                           | Accepted |
+| D-28 | LLM call: temperature 0, reply cleaning in `extract_sql`        | Accepted |
+| D-29 | Schema check is best effort, runs on the selected subset        | Accepted |
+| D-30 | Mermaid diagrams, owned by ARCHITECTURE.md                      | Accepted |
+| D-31 | Executor makes values JSON-safe, maps lost connection to 400    | Accepted |
+| D-32 | `httpx2` as dev dependency for Starlette `TestClient`           | Accepted |
 | D-33 | History is best effort; a failed log never changes the response | Accepted |
-| D-34 | Internal errors log exception type and path only              | Accepted |
+| D-34 | Internal errors log exception type and path only                | Accepted |
+| D-35 | mypy skips missing stubs for `plotly`                           | Accepted |
 
 ---
 
@@ -256,6 +257,13 @@ Status values: **Accepted** · **Superseded by D-xx** · **Proposed**
 **Decision:** The 500 handler logs `unhandled <ExceptionType> on <path>` through `sqlwhisper.api`, with no message and no traceback. The client still gets `{"code": "internal_error", "message": "unexpected error"}`.
 **Why:** Exception text can carry SQL, question text or driver details (privacy principle). The type and path are enough to find the code path.
 **Cost:** Starlette re-raises after the handler, so uvicorn prints its own traceback in the server log. Left alone on purpose: it is local-only and needed for debugging.
+
+## D-35 — mypy skips missing stubs for plotly
+
+**Date:** 2026-11-22 · **Status:** Accepted
+**Decision:** Add a `[[tool.mypy.overrides]]` with `ignore_missing_imports = true` for `plotly` and `plotly.*`. `strict` stays on everywhere else.
+**Why:** Plotly ships no `py.typed` marker and no official stubs, so `mypy --strict` rejects the import. Only `ui.py` uses it (D-10). No new dependency.
+**Cost:** Plotly objects are `Any` to mypy, so wrong plotly calls are not caught statically. `tests/test_ui.py` covers the figure helper.
 
 ## Template
 
