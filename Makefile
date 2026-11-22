@@ -1,5 +1,5 @@
 .RECIPEPREFIX := >
-.PHONY: check lint type test tags smoke api tree
+.PHONY: check lint type test tags smoke api ui tree
 
 check: lint type test
 
@@ -20,6 +20,9 @@ smoke:
 
 api:
 > uv run uvicorn sqlwhisper.api:create_app --factory --reload --port 8000
+
+ui:
+> uv run streamlit run src/sqlwhisper/ui.py
 
 tree:
 > @command -v tree >/dev/null || { echo 'Install tree: sudo apt install tree'; exit 1; }

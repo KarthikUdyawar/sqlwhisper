@@ -150,3 +150,10 @@ def test_internal_error_is_generic_and_does_not_echo_the_message() -> None:
 def test_unknown_or_missing_code_falls_back_to_generic() -> None:
     assert "Unexpected" in error_message(err("brand_new_code"))[0]
     assert "Unexpected" in error_message({})[0]
+
+
+def test_api_unreachable_names_the_api() -> None:
+    message, sql = error_message({"code": "api_unreachable"})
+    assert "API" in message
+    assert "Unexpected" not in message
+    assert sql is None
