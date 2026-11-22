@@ -15,3 +15,16 @@ make smoke      # opt-in: one real question against Ollama
 make api        # start the API on :8000
 make tree       # regenerate docs/STRUCTURE.md
 ```
+
+## Try the API
+
+With `make api` running and Ollama up (needs `jq`):
+
+```bash
+SRC=$(curl -s -F "file=@data/sales.csv" localhost:8000/sources/csv | jq -r .source_id)
+curl -s localhost:8000/query -H "Content-Type: application/json" \
+  -d "{\"source_id\": \"$SRC\", \"question\": \"total by region\"}" | jq
+curl -s localhost:8000/history | jq
+```
+
+Any CSV works in place of `data/sales.csv`. Response shape: [`docs/PRD.md`](docs/PRD.md#api).
