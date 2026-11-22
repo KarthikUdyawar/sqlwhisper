@@ -53,7 +53,7 @@ flowchart TD
 | `sources/postgres.py` | Postgres engine, read-only transaction, label without password                     | engine       |
 | `sources/registry.py` | `source_id → DataSource`                                                           | in memory    |
 | `schema.py`           | Introspect, keyword table selector                                                 | none         |
-| `llm.py`              | `LLMClient` protocol, `OllamaClient` (httpx, `health()`)                                       | none         |
+| `llm.py`              | `LLMClient` protocol, `OllamaClient` (httpx, `health()`)                           | none         |
 | `prompt.py`           | Build system prompt, chat turns, correction turn; extract SQL from the reply       | none         |
 | `validator.py`        | sqlglot parse → safety → schema check                                              | none         |
 | `executor.py`         | Enforce LIMIT on AST (max_rows + 1), run on the source's read-only engine, timeout | none         |
@@ -122,7 +122,7 @@ flowchart TD
     I --> J["api: pick_chart, history.log, build QueryResult"]
 ```
 
-Attempts: `1 + MAX_RETRIES`. Validation runs against the selected table subset. Chart, history and `QueryResult` are built in `api.py`. History logs question, SQL, row count and source label, also with `ok=false` when the pipeline raises. It never stores credentials. The executor makes values JSON-safe (`plain_value`): Decimal to int/float, NaN/inf to null, bytes to a placeholder.
+Attempts: `1 + MAX_RETRIES`. Validation runs against the selected table subset. Chart, history and `QueryResult` are built in `api.py`. History logs question, SQL, row count and source label, also with `ok=false` when the pipeline raises. It never stores credentials. A failed history write is logged (exception type only) and never changes the response ([D-33](DECISION.md)). The executor makes values JSON-safe (`plain_value`): Decimal to int/float, NaN/inf to null, bytes to a placeholder.
 
 ## 6. Safety model (defense in depth)
 
@@ -160,13 +160,13 @@ Body shape: `{"code": "...", "message": "...", "last_sql": "..."?}`. No stack tr
 
 ## 8. Data and storage
 
-| What            | Where                             | Lifetime                         |
-| --------------- | --------------------------------- | -------------------------------- |
-| Uploaded CSV    | `DATA_DIR/uploads/{source_id}.db` | Purged on API startup            |
-| Source registry | In memory                         | Process (restart → re-upload)    |
-| Postgres URL    | In memory, inside the engine only | Process. Never logged or stored  |
-| History         | `DATA_DIR/history.db` (SQLite, includes question text and SQL)    | Persistent, last 20 read via API |
-| Chat/session    | Streamlit `session_state`         | Browser session                  |
+| What            | Where                                                          | Lifetime                         |
+| --------------- | -------------------------------------------------------------- | -------------------------------- |
+| Uploaded CSV    | `DATA_DIR/uploads/{source_id}.db`                              | Purged on API startup            |
+| Source registry | In memory                                                      | Process (restart → re-upload)    |
+| Postgres URL    | In memory, inside the engine only                              | Process. Never logged or stored  |
+| History         | `DATA_DIR/history.db` (SQLite, includes question text and SQL) | Persistent, last 20 read via API |
+| Chat/session    | Streamlit `session_state`                                      | Browser session                  |
 
 ## 9. CSV ingestion rules
 
