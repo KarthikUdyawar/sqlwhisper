@@ -5,6 +5,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import SQLAlchemyError
 
 from fakes import FakeLLM
 from sqlwhisper.api import create_app
@@ -353,3 +354,13 @@ def test_domain_error_is_logged_as_failed(tmp_path: Path) -> None:
     response = ask(client, upload(client))
     assert response.status_code == 502
     assert [e["ok"] for e in client.get("/history").json()] == [False]
+
+
+def test_stray_sqlalchemy_error_returns_fixed_message(tmp_path: Path) -> None:
+    driver_text = "connection to 10.0.0.5 failed, password=hunter2"
+    client = make_client(tmp_path, FakeLLM(SQLAlchemyError(driver_text)))
+    response = ask(client, upload(client))
+    assert response.status_code == 400
+    assert response.json() == {"code": "bad_source", "message": "could not reach the database"}
+    assert "10.0.0.5" not in response.text
+    assert "hunter2" not in response.text
