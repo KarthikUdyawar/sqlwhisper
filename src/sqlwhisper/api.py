@@ -36,6 +36,16 @@ from sqlwhisper.sources.registry import SourceRegistry
 
 logger = logging.getLogger(__name__)
 
+# Failures worth a history row. Unexpected exceptions are bugs, not user history.
+_LOGGED_ERRORS = (
+    SourceError,
+    SQLAlchemyError,
+    UnsafeSQL,
+    ValidationFailed,
+    LLMUnavailable,
+    QueryTimeout,
+)
+
 # exception -> (HTTP status, error code). Bodies never carry stack traces.
 _ERRORS: dict[type[Exception], tuple[int, str]] = {
     SourceError: (400, "bad_source"),
@@ -106,7 +116,7 @@ def create_app(
         source = registry.get(body.source_id)
         try:
             out = answer(body.question, body.context, source, llm, pipeline_cfg)
-        except Exception as e:
+        except _LOGGED_ERRORS as e:
             sql = getattr(e, "last_sql", None) or getattr(e, "sql", None) or ""
             _log_best_effort(history, body.question, sql, 0, source.label, ok=False)
             raise
