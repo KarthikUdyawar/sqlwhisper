@@ -336,3 +336,20 @@ def test_history_failure_does_not_replace_the_pipeline_error(
     response = ask(client, upload(client))
     assert response.status_code == 422
     assert response.json()["code"] == "unsafe_sql"
+
+
+# ---- history logs domain errors only ----------------------------------------------------
+
+
+def test_unexpected_error_is_not_logged_in_history(tmp_path: Path) -> None:
+    client = make_client(tmp_path, FakeLLM(RuntimeError("boom")), raise_server_exceptions=False)
+    response = ask(client, upload(client))
+    assert response.status_code == 500
+    assert client.get("/history").json() == []
+
+
+def test_domain_error_is_logged_as_failed(tmp_path: Path) -> None:
+    client = make_client(tmp_path, FakeLLM(LLMUnavailable("ollama down")))
+    response = ask(client, upload(client))
+    assert response.status_code == 502
+    assert [e["ok"] for e in client.get("/history").json()] == [False]
