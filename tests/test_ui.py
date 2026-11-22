@@ -1,7 +1,7 @@
 from typing import Any
 
 from sqlwhisper.models import ChartSpec, QueryResult
-from sqlwhisper.ui import build_figure
+from sqlwhisper.ui import build_context, build_figure
 
 
 def make_result(chart: ChartSpec | None, columns: list[str], rows: list[list[Any]]) -> QueryResult:
@@ -73,3 +73,29 @@ def test_figure_follows_spec_not_column_order() -> None:
 
 def test_no_chart_spec_returns_none() -> None:
     assert build_figure(make_result(None, ["a"], [[1]])) is None
+
+
+# ---- build_context ----------------------------------------------------------------------
+
+
+def turn(n: int, sql: str | None = "SELECT 1") -> dict[str, Any]:
+    return {"question": f"q{n}", "sql": sql}
+
+
+def test_context_keeps_last_three() -> None:
+    context = build_context([turn(i) for i in range(1, 6)])
+    assert [qa["question"] for qa in context] == ["q3", "q4", "q5"]
+
+
+def test_context_skips_failed_turns() -> None:
+    turns = [turn(1), turn(2, None), turn(3), turn(4, ""), turn(5)]
+    assert [qa["question"] for qa in build_context(turns)] == ["q1", "q3", "q5"]
+
+
+def test_context_is_empty_without_turns() -> None:
+    assert build_context([]) == []
+
+
+def test_context_pairs_carry_only_question_and_sql() -> None:
+    extra = {**turn(1), "rows": [[1]], "chart": None}
+    assert build_context([extra]) == [{"question": "q1", "sql": "SELECT 1"}]
