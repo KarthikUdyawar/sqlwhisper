@@ -6,43 +6,46 @@ Status values: **Accepted** · **Superseded by D-xx** · **Proposed**
 
 ## Index
 
-| ID   | Decision                                                     | Status   |
-| ---- | ------------------------------------------------------------ | -------- |
-| D-01 | FastAPI backend + Streamlit UI                               | Accepted |
-| D-02 | Single Python package, `src/` layout, uv only                | Accepted |
-| D-03 | Sources: single CSV + Postgres URL                           | Accepted |
-| D-04 | Postgres URLs only, no `sqlite://` URLs                      | Accepted |
-| D-05 | CSV → SQLite file via pandas                                 | Accepted |
-| D-06 | AST-based safety check, not a keyword blocklist              | Accepted |
-| D-07 | Read-only enforced at executor, independent of validator     | Accepted |
-| D-08 | LIMIT enforced on the AST by the executor                    | Accepted |
-| D-09 | Deterministic chart rules, not LLM chart JSON                | Accepted |
-| D-10 | Chart spec from API, Plotly built in UI                      | Accepted |
-| D-11 | Env-only configuration, no `config.yaml`                     | Accepted |
-| D-12 | Sync code everywhere                                         | Accepted |
-| D-13 | `httpx` for Ollama, no SDK, no `requests`                    | Accepted |
-| D-14 | Default model `qwen2.5:7b-instruct`, final pick by benchmark | Proposed |
-| D-15 | Keyword table selector now, embeddings later                 | Accepted |
-| D-16 | Follow-ups via client-sent last 3 Q/SQL pairs                | Accepted |
-| D-17 | Source registry in memory; credentials never persisted       | Accepted |
-| D-18 | No seed database; tests build their own data                 | Accepted |
-| D-19 | Single-stage Dockerfile, Ollama external                     | Accepted |
-| D-20 | Feature branches off `master`, no `develop`                  | Accepted |
-| D-21 | Sprint ID `X1`, tickets `X1-n`                               | Accepted |
-| D-22 | Retry budget: 2 retries (3 attempts)                         | Accepted |
-| D-23 | Experiment (`chat-db-plotly`) retired                        | Accepted |
-| D-24 | Flat docs, generated STRUCTURE.md, CLAUDE.md                 | Accepted |
-| D-25 | Database run-time errors are retried like validator issues   | Accepted |
-| D-26 | Pipeline returns `Answer`; API builds `QueryResult` + chart  | Accepted |
-| D-27 | Read-only lives in the source engines                        | Accepted |
-| D-28 | LLM call: temperature 0, reply cleaning in `extract_sql`     | Accepted |
-| D-29 | Schema check is best effort, runs on the selected subset     | Accepted |
-| D-30 | Mermaid diagrams, owned by ARCHITECTURE.md                 | Accepted |
-| D-31 | Executor makes values JSON-safe, maps lost connection to 400 | Accepted |
-| D-32 | `httpx2` as dev dependency for Starlette `TestClient`        | Accepted |
+| ID   | Decision                                                        | Status   |
+| ---- | --------------------------------------------------------------- | -------- |
+| D-01 | FastAPI backend + Streamlit UI                                  | Accepted |
+| D-02 | Single Python package, `src/` layout, uv only                   | Accepted |
+| D-03 | Sources: single CSV + Postgres URL                              | Accepted |
+| D-04 | Postgres URLs only, no `sqlite://` URLs                         | Accepted |
+| D-05 | CSV → SQLite file via pandas                                    | Accepted |
+| D-06 | AST-based safety check, not a keyword blocklist                 | Accepted |
+| D-07 | Read-only enforced at executor, independent of validator        | Accepted |
+| D-08 | LIMIT enforced on the AST by the executor                       | Accepted |
+| D-09 | Deterministic chart rules, not LLM chart JSON                   | Accepted |
+| D-10 | Chart spec from API, Plotly built in UI                         | Accepted |
+| D-11 | Env-only configuration, no `config.yaml`                        | Accepted |
+| D-12 | Sync code everywhere                                            | Accepted |
+| D-13 | `httpx` for Ollama, no SDK, no `requests`                       | Accepted |
+| D-14 | Default model `qwen2.5:7b-instruct`, final pick by benchmark    | Proposed |
+| D-15 | Keyword table selector now, embeddings later                    | Accepted |
+| D-16 | Follow-ups via client-sent last 3 Q/SQL pairs                   | Accepted |
+| D-17 | Source registry in memory; credentials never persisted          | Accepted |
+| D-18 | No seed database; tests build their own data                    | Accepted |
+| D-19 | Single-stage Dockerfile, Ollama external                        | Accepted |
+| D-20 | Feature branches off `master`, no `develop`                     | Accepted |
+| D-21 | Sprint ID `X1`, tickets `X1-n`                                  | Accepted |
+| D-22 | Retry budget: 2 retries (3 attempts)                            | Accepted |
+| D-23 | Experiment (`chat-db-plotly`) retired                           | Accepted |
+| D-24 | Flat docs, generated STRUCTURE.md, CLAUDE.md                    | Accepted |
+| D-25 | Database run-time errors are retried like validator issues      | Accepted |
+| D-26 | Pipeline returns `Answer`; API builds `QueryResult` + chart     | Accepted |
+| D-27 | Read-only lives in the source engines                           | Accepted |
+| D-28 | LLM call: temperature 0, reply cleaning in `extract_sql`        | Accepted |
+| D-29 | Schema check is best effort, runs on the selected subset        | Accepted |
+| D-30 | Mermaid diagrams, owned by ARCHITECTURE.md                      | Accepted |
+| D-31 | Executor makes values JSON-safe, maps lost connection to 400    | Accepted |
+| D-32 | `httpx2` as dev dependency for Starlette `TestClient`           | Accepted |
 | D-33 | History is best effort; a failed log never changes the response | Accepted |
-| D-34 | Internal errors log exception type and path only              | Accepted |
-| D-35 | mypy skips missing stubs for `plotly`                        | Accepted |
+| D-34 | Internal errors log exception type and path only                | Accepted |
+| D-35 | mypy skips missing stubs for `plotly`                           | Accepted |
+| D-36 | Compose joins the `ollama-net` network                          | Accepted |
+| D-37 | Streamlit telemetry and IP lookup off                           | Accepted |
+| D-38 | Compose publishes ports on loopback only                        | Accepted |
 
 ---
 
@@ -264,6 +267,27 @@ Status values: **Accepted** · **Superseded by D-xx** · **Proposed**
 **Decision:** Add a `[[tool.mypy.overrides]]` with `ignore_missing_imports = true` for `plotly` and `plotly.*`. `strict` stays on everywhere else.
 **Why:** Plotly ships no `py.typed` marker and no official stubs, so `mypy --strict` rejects the import. Only `ui.py` uses it (D-10). No new dependency.
 **Cost:** Plotly objects are `Any` to mypy, so wrong plotly calls are not caught statically. `tests/test_ui.py` covers the figure helper.
+
+## D-36 — Compose joins the ollama-hub network
+
+**Date:** 2026-11-28 · **Status:** Accepted
+**Decision:** `api` joins the external Docker network `ollama-net` and reaches Ollama at `${DOCKER_OLLAMA_URL:-http://ollama:11434}`. `DOCKER_OLLAMA_URL` is compose-only; `OLLAMA_URL` in `.env` stays the host-side value for `make api`. Compose still has no Ollama service (extends D-19).
+**Why:** Ollama runs from the ollama-hub repo on the same machine, and its firewall limits published-port traffic to one client IP, so a container going through the host gateway may be dropped. The shared network avoids that path. `localhost` inside a container is the container itself, so the `.env` value cannot be reused.
+**Cost:** `docker compose up` fails when the hub network is missing, so start the hub first. Ollama on another host needs `DOCKER_OLLAMA_URL` set to its URL and the `ollama-net` entries removed from `docker-compose.yml`.
+
+## D-37 — Streamlit telemetry and IP lookup off
+
+**Date:** 2026-11-28 · **Status:** Accepted
+**Decision:** The UI starts with `--browser.gatherUsageStats false --browser.serverAddress localhost`, in `docker-compose.yml` and in `make ui`.
+**Why:** The first container run logged "Collecting usage statistics" and printed an "External URL" with the host's public IP. Both reach the internet, which breaks "nothing leaves the machine". After the change neither line appears in the container logs.
+**Cost:** The flags live in two places. Move them to `.streamlit/config.toml` if a third place needs them.
+
+## D-38 — Compose publishes ports on loopback only
+
+**Date:** 2026-11-28 · **Status:** Accepted
+**Decision:** `docker-compose.yml` maps `127.0.0.1:8000` and `127.0.0.1:8501`, not all interfaces.
+**Why:** The API has no auth (non-goal until X4) and accepts a Postgres URL from any caller. Docker publishes on all interfaces by default and bypasses host firewalls such as ufw, and the host has a public address. Found in review of the Docker PR.
+**Cost:** Other machines cannot reach the UI until auth exists (X4). Use an SSH tunnel meanwhile.
 
 ## Template
 

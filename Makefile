@@ -22,7 +22,7 @@ api:
 > uv run uvicorn sqlwhisper.api:create_app --factory --reload --port 8000
 
 ui:
-> uv run streamlit run src/sqlwhisper/ui.py
+> uv run streamlit run src/sqlwhisper/ui.py --browser.gatherUsageStats false --browser.serverAddress localhost
 
 tree:
 > @command -v tree >/dev/null || { echo 'Install tree: sudo apt install tree'; exit 1; }

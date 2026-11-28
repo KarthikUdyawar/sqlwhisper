@@ -191,15 +191,18 @@ API returns a `ChartSpec {type, x, y}`. The UI turns it into a Plotly figure. Th
 
 ```bash
 docker-compose.yml
-  api: uv run uvicorn sqlwhisper.api:create_app --factory --host 0.0.0.0 --port 8000
-  ui:  uv run streamlit run src/sqlwhisper/ui.py   (API_URL=http://api:8000)
-  ollama: external → OLLAMA_URL (e.g. host.docker.internal:11434 or LAN IP)
+  api: uvicorn sqlwhisper.api:create_app --factory --host 0.0.0.0 --port 8000
+  ui:  streamlit run src/sqlwhisper/ui.py --server.address 0.0.0.0 ...   (API_URL=http://api:8000)
+  ollama: external, reached over the ollama-net network (DOCKER_OLLAMA_URL, default http://ollama:11434)
 ```
 
 - One single-stage Dockerfile, shared by both services, different `command`.
 - `data/` mounted as a volume.
-- Non-root user.
+- Non-root user, uid 1000, so a host-owned `data/` stays writable.
 - `uv sync` without `--frozen` unless the lockfile is confirmed present and current.
+- Commands call `uvicorn` and `streamlit` from the venv on `PATH`, not `uv run`, so nothing re-syncs at start.
+- Streamlit runs with usage statistics and the public-IP lookup off ([D-37](DECISION.md)). Ollama wiring: [D-36](DECISION.md).
+- Ports are published on `127.0.0.1` only, because the API has no auth ([D-38](DECISION.md)).
 
 ## 12. Testing strategy
 

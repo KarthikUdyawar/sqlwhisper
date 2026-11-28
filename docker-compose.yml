@@ -1,0 +1,31 @@
+# Ollama is external: ollama-hub (same machine) publishes the ollama-net network.
+# Start the hub first, or `docker compose up` fails on the missing network.
+# Ports bind to loopback: the API has no auth yet (D-38).
+services:
+  api:
+    build: .
+    image: sqlwhisper
+    command: uvicorn sqlwhisper.api:create_app --factory --host 0.0.0.0 --port 8000
+    env_file: .env
+    environment:
+      OLLAMA_URL: ${DOCKER_OLLAMA_URL:-http://ollama:11434}
+      DATA_DIR: /app/data
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./data:/app/data
+    networks: [default, ollama-net]
+
+  ui:
+    build: .
+    image: sqlwhisper
+    command: streamlit run src/sqlwhisper/ui.py --server.address 0.0.0.0 --server.headless true --browser.gatherUsageStats false --browser.serverAddress localhost
+    environment:
+      API_URL: http://api:8000
+    ports:
+      - "127.0.0.1:8501:8501"
+    depends_on: [api]
+
+networks:
+  ollama-net:
+    external: true
