@@ -2,7 +2,7 @@
 
 **Version:** 0.2.0 (supersedes 0.1.0)
 **Stack:** FastAPI · Streamlit · Ollama · SQLAlchemy · sqlglot · pandas · Plotly · uv · Docker
-**Default model:** `qwen2.5:7b-instruct` (env-configurable)
+**Default model:** `qwen2.5:3b` (env-configurable)
 **Principles:** KISS, SOLID, test-first
 
 ---
@@ -177,7 +177,7 @@ Removed from repo: `main.py`, `requirements.txt` (uv only). The `chat-db-plotly`
 | Var                | Default                            |
 | ------------------ | ---------------------------------- |
 | `OLLAMA_URL`       | `http://localhost:11434`           |
-| `OLLAMA_MODEL`     | `qwen2.5:7b-instruct`              |
+| `OLLAMA_MODEL`     | `qwen2.5:3b`                       |
 | `OLLAMA_TIMEOUT_S` | `60`                               |
 | `MAX_ROWS`         | `500`                              |
 | `MAX_RETRIES`      | `2`                                |
