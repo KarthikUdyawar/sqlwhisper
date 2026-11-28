@@ -1,5 +1,5 @@
 .RECIPEPREFIX := >
-.PHONY: check lint type test tags smoke api ui tree
+.PHONY: check lint type test tags smoke bench api ui tree
 
 check: lint type test
 
@@ -16,7 +16,10 @@ tags:
 > curl -s $${OLLAMA_URL:-http://localhost:11434}/api/tags | jq .
 
 smoke:
-> uv run pytest -m ollama -s
+> uv run pytest -m "ollama and not bench" -s
+
+bench:
+> uv run pytest -m bench -s $(if $(MODEL),--bench-model=$(MODEL))
 
 api:
 > uv run uvicorn sqlwhisper.api:create_app --factory --reload --port 8000
