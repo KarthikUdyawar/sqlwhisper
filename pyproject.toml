@@ -34,7 +34,10 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["ollama: needs a running Ollama (opt-in)"]
+markers = [
+    "ollama: needs a running Ollama (opt-in)",
+    "bench: 20-question accuracy benchmark, also marked ollama (opt-in, make bench)",
+]
 
 [tool.ruff]
 line-length = 100

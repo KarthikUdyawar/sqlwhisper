@@ -14,7 +14,7 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_defaults() -> None:
     s = Settings(_env_file=None)
-    assert s.ollama_model == "qwen2.5:7b-instruct"
+    assert s.ollama_model == "qwen2.5:3b"
     assert s.max_rows == 500
     assert s.max_retries == 2
     assert s.data_dir == Path("data")

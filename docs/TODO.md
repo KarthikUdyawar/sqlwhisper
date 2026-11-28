@@ -167,9 +167,9 @@ Implement
 - [x] Single-stage `Dockerfile` (uv, non-root), shared by both services
 - [x] `docker-compose.yml`: `api`, `ui`, `./data` volume, Ollama URL from env ([D-36](DECISION.md)), no Ollama service
 - [x] `uv sync` in the Dockerfile without `--frozen`
-- [ ] Benchmark: fixed CSV (committed under `tests/fixtures/`), 20 questions with expected result checks, run per model: `qwen2.5:7b-instruct`, `qwen3:4b`, `qwen2.5:3b`, `llama3.2:3b`
-- [ ] Pick default model from the results, record it in `DECISION.md`
-- [ ] README: quick start, env table, screenshots, benchmark table
+- [x] Benchmark: fixed CSV (committed under `tests/fixtures/`), 20 questions with expected result checks, run per model: `qwen2.5:7b-instruct`, `qwen3:4b`, `qwen2.5:3b`, `llama3.2:3b`
+- [x] Pick default model from the results, record it in `DECISION.md` ([D-39](DECISION.md))
+- [x] README: quick start, env table, benchmark table (screenshots skipped)
 - [x] Cold-start check: `docker compose up` → UI usable in <60 s
 
 **Done when:** a fresh clone runs end to end with only `.env` filled in.

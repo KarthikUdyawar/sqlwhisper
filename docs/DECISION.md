@@ -21,7 +21,7 @@ Status values: **Accepted** · **Superseded by D-xx** · **Proposed**
 | D-11 | Env-only configuration, no `config.yaml`                        | Accepted |
 | D-12 | Sync code everywhere                                            | Accepted |
 | D-13 | `httpx` for Ollama, no SDK, no `requests`                       | Accepted |
-| D-14 | Default model `qwen2.5:7b-instruct`, final pick by benchmark    | Proposed |
+| D-14 | Default model `qwen2.5:7b-instruct`, final pick by benchmark    | Superseded by D-39 |
 | D-15 | Keyword table selector now, embeddings later                    | Accepted |
 | D-16 | Follow-ups via client-sent last 3 Q/SQL pairs                   | Accepted |
 | D-17 | Source registry in memory; credentials never persisted          | Accepted |
@@ -46,6 +46,7 @@ Status values: **Accepted** · **Superseded by D-xx** · **Proposed**
 | D-36 | Compose joins the `ollama-net` network                          | Accepted |
 | D-37 | Streamlit telemetry and IP lookup off                           | Accepted |
 | D-38 | Compose publishes ports on loopback only                        | Accepted |
+| D-39 | Default model `qwen2.5:3b`, chosen by benchmark | Accepted |
 
 ---
 
@@ -131,7 +132,7 @@ Status values: **Accepted** · **Superseded by D-xx** · **Proposed**
 
 ## D-14 — Default model
 
-**Date:** 2026-11-09 · **Status:** Proposed
+**Date:** 2026-11-09 · **Status:** Superseded by D-39
 **Decision:** Start with `qwen2.5:7b-instruct`. Benchmark it against `qwen3:4b`, `qwen2.5:3b`, `llama3.2:3b` in X1-7 and record the winner here.
 **Why:** `sqlcoder` and `deepseek-coder` from PRD v0.1 are not installed locally. Choose from what exists and measure.
 
@@ -288,6 +289,13 @@ Status values: **Accepted** · **Superseded by D-xx** · **Proposed**
 **Decision:** `docker-compose.yml` maps `127.0.0.1:8000` and `127.0.0.1:8501`, not all interfaces.
 **Why:** The API has no auth (non-goal until X4) and accepts a Postgres URL from any caller. Docker publishes on all interfaces by default and bypasses host firewalls such as ufw, and the host has a public address. Found in review of the Docker PR.
 **Cost:** Other machines cannot reach the UI until auth exists (X4). Use an SSH tunnel meanwhile.
+
+## D-39 — Default model qwen2.5:3b
+
+**Date:** 2026-11-28 · **Status:** Accepted
+**Decision:** The default `OLLAMA_MODEL` is `qwen2.5:3b`. Resolves D-14.
+**Why:** `make bench` (20 questions, fixed 96-row CSV in `tests/fixtures/`, temperature 0, one run, result values compared, not SQL text) gave first-attempt accuracy: `qwen2.5:3b` 16/20 (median 0.4 s), `qwen2.5:3b-gpu` 16/20 (0.3 s), `qwen2.5:7b-instruct` 16/20 (1.8 s), `llama3.2:3b` 12/20 (0.5 s), `qwen3:4b` 11/20 (27 s, and 6 of 20 hit the 60 s timeout on a 4 GB GPU). Three models tie on accuracy, so the fastest wins, as the rule was set before the runs.
+**Cost:** 16/20 is exactly the PRD's 80% line, with no margin, and one run at n=20 cannot separate the tied models. Column order is strict, which cost `qwen2.5:3b-gpu` and `qwen2.5:3b` Q04 (values right, label last). The retry path ran once on the whole set (`llama3.2:3b`, Q07, still wrong), so "hallucinated column fixed in 2 retries" is not shown by the benchmark; `test_pipeline.py` covers the mechanism with a fake LLM. Q10 failed in every run (`qwen3:4b` by timeout) and Q08 and Q19 failed on three of five: the prompt carries schema only, no sample values (X2).
 
 ## Template
 

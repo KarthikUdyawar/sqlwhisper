@@ -1,0 +1,392 @@
+[
+  {
+    "id": 1,
+    "question": "How many orders are there?",
+    "context": [],
+    "expected": [
+      [
+        96
+      ]
+    ],
+    "ordered": false
+  },
+  {
+    "id": 2,
+    "question": "What is the total revenue?",
+    "context": [],
+    "expected": [
+      [
+        20756.0
+      ]
+    ],
+    "ordered": false
+  },
+  {
+    "id": 3,
+    "question": "Units sold per product",
+    "context": [],
+    "expected": [
+      [
+        "Gadget",
+        101
+      ],
+      [
+        "Plugin",
+        81
+      ],
+      [
+        "Sprocket",
+        135
+      ],
+      [
+        "Suite",
+        138
+      ],
+      [
+        "Widget",
+        121
+      ]
+    ],
+    "ordered": false
+  },
+  {
+    "id": 4,
+    "question": "Average price per category",
+    "context": [],
+    "expected": [
+      [
+        "Hardware",
+        16.2069
+      ],
+      [
+        "Software",
+        73.7368
+      ]
+    ],
+    "ordered": false
+  },
+  {
+    "id": 5,
+    "question": "Revenue by region, highest first",
+    "context": [],
+    "expected": [
+      [
+        "South",
+        9025.5
+      ],
+      [
+        "North",
+        5256.5
+      ],
+      [
+        "East",
+        4242.5
+      ],
+      [
+        "West",
+        2231.5
+      ]
+    ],
+    "ordered": true
+  },
+  {
+    "id": 6,
+    "question": "Top 3 products by revenue",
+    "context": [],
+    "expected": [
+      [
+        "Suite",
+        13662.0
+      ],
+      [
+        "Gadget",
+        3030.0
+      ],
+      [
+        "Plugin",
+        1539.0
+      ]
+    ],
+    "ordered": true
+  },
+  {
+    "id": 7,
+    "question": "Total revenue per month",
+    "context": [],
+    "expected": [
+      [
+        "2026-01",
+        3152.5
+      ],
+      [
+        "2026-02",
+        4700.5
+      ],
+      [
+        "2026-03",
+        3035.5
+      ],
+      [
+        "2026-04",
+        2580.0
+      ],
+      [
+        "2026-05",
+        3448.5
+      ],
+      [
+        "2026-06",
+        3839.0
+      ]
+    ],
+    "ordered": false
+  },
+  {
+    "id": 8,
+    "question": "How many online orders?",
+    "context": [],
+    "expected": [
+      [
+        40
+      ]
+    ],
+    "ordered": false
+  },
+  {
+    "id": 9,
+    "question": "Average discount when one was given",
+    "context": [],
+    "expected": [
+      [
+        0.0969
+      ]
+    ],
+    "ordered": false
+  },
+  {
+    "id": 10,
+    "question": "How many orders have no discount?",
+    "context": [],
+    "expected": [
+      [
+        80
+      ]
+    ],
+    "ordered": false
+  },
+  {
+    "id": 11,
+    "question": "Which region has the most orders?",
+    "context": [],
+    "expected": [
+      [
+        "North"
+      ]
+    ],
+    "ordered": false
+  },
+  {
+    "id": 12,
+    "question": "Order ids with total over 500",
+    "context": [],
+    "expected": [
+      [
+        2002
+      ],
+      [
+        2007
+      ],
+      [
+        2018
+      ],
+      [
+        2020
+      ],
+      [
+        2023
+      ],
+      [
+        2029
+      ],
+      [
+        2034
+      ],
+      [
+        2045
+      ],
+      [
+        2061
+      ],
+      [
+        2072
+      ],
+      [
+        2077
+      ],
+      [
+        2088
+      ],
+      [
+        2093
+      ]
+    ],
+    "ordered": false
+  },
+  {
+    "id": 13,
+    "question": "Revenue by region and channel",
+    "context": [],
+    "expected": [
+      [
+        "East",
+        "Online",
+        2592.0
+      ],
+      [
+        "East",
+        "Retail",
+        1650.5
+      ],
+      [
+        "North",
+        "Online",
+        2451.5
+      ],
+      [
+        "North",
+        "Retail",
+        2805.0
+      ],
+      [
+        "South",
+        "Online",
+        2711.0
+      ],
+      [
+        "South",
+        "Retail",
+        6314.5
+      ],
+      [
+        "West",
+        "Online",
+        604.5
+      ],
+      [
+        "West",
+        "Retail",
+        1627.0
+      ]
+    ],
+    "ordered": false
+  },
+  {
+    "id": 14,
+    "question": "Which product has the highest unit price?",
+    "context": [],
+    "expected": [
+      [
+        "Suite"
+      ]
+    ],
+    "ordered": false
+  },
+  {
+    "id": 15,
+    "question": "How many distinct products were sold in the South?",
+    "context": [],
+    "expected": [
+      [
+        4
+      ]
+    ],
+    "ordered": false
+  },
+  {
+    "id": 16,
+    "question": "How many units were sold in the first quarter of 2026?",
+    "context": [],
+    "expected": [
+      [
+        288
+      ]
+    ],
+    "ordered": false
+  },
+  {
+    "id": 17,
+    "question": "Which region has the lowest average order total?",
+    "context": [],
+    "expected": [
+      [
+        "West"
+      ]
+    ],
+    "ordered": false
+  },
+  {
+    "id": 18,
+    "question": "What was the revenue in March 2026?",
+    "context": [],
+    "expected": [
+      [
+        3035.5
+      ]
+    ],
+    "ordered": false
+  },
+  {
+    "id": 19,
+    "question": "only online orders",
+    "context": [
+      {
+        "question": "Revenue by region",
+        "sql": "SELECT region, SUM(total) AS revenue FROM bench GROUP BY region"
+      }
+    ],
+    "expected": [
+      [
+        "East",
+        2592.0
+      ],
+      [
+        "North",
+        2451.5
+      ],
+      [
+        "South",
+        2711.0
+      ],
+      [
+        "West",
+        604.5
+      ]
+    ],
+    "ordered": false
+  },
+  {
+    "id": 20,
+    "question": "just Hardware",
+    "context": [
+      {
+        "question": "Units per product",
+        "sql": "SELECT product, SUM(units) AS units_sold FROM bench GROUP BY product"
+      }
+    ],
+    "expected": [
+      [
+        "Gadget",
+        101
+      ],
+      [
+        "Sprocket",
+        135
+      ],
+      [
+        "Widget",
+        121
+      ]
+    ],
+    "ordered": false
+  }
+]

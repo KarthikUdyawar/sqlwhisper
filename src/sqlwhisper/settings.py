@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     ollama_url: str = "http://localhost:11434"
-    ollama_model: str = "qwen2.5:7b-instruct"
+    ollama_model: str = "qwen2.5:3b"
     ollama_timeout_s: int = Field(60, gt=0)
 
     max_rows: int = Field(500, gt=0)
